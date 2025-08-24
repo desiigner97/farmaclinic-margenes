@@ -1279,7 +1279,7 @@ export default function AppMargenes() {
                           <input
                             type="text"
                             inputMode="decimal"
-                            placeholder="0,00"
+                            placeholder="0.00"
                             autoComplete="off"
                             value={
                               costosIngresados[p.id]?.caja === undefined ||
@@ -1289,14 +1289,32 @@ export default function AppMargenes() {
                             }
                             onChange={(e) => {
                               const raw = e.target.value;
-                              setCostosIngresados((prev) => ({
-                                ...prev,
-                                [p.id]: {
-                                  caja: raw === "" ? undefined : numBO(raw),
-                                },
-                              }));
+                              // Permitir números con coma o punto decimal y espacios
+                              if (raw === "" || /^[\d\s.,]*$/.test(raw)) {
+                                setCostosIngresados((prev) => ({
+                                  ...prev,
+                                  [p.id]: {
+                                    caja: raw === "" ? undefined : raw,
+                                  },
+                                }));
+                              }
                             }}
-                            title="Costo por Caja"
+                            onBlur={(e) => {
+                              // Convertir a número al perder el foco
+                              const raw = e.target.value;
+                              if (raw !== "") {
+                                const numValue = numBO(raw);
+                                if (numValue !== undefined) {
+                                  setCostosIngresados((prev) => ({
+                                    ...prev,
+                                    [p.id]: {
+                                      caja: numValue,
+                                    },
+                                  }));
+                                }
+                              }
+                            }}
+                            title="Costo por Caja - Acepta: 123.45, 123,45, 1.234,56"
                             style={costInputStyle}
                           />
                         </div>
