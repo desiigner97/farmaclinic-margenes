@@ -258,16 +258,45 @@ function clamp01(x) {
 }
 function parsePercentInput(raw) {
   if (raw === "" || raw == null) return undefined; // quitar override
-  const dec = asDecimalMaybe(raw); // 7 -> 0.07; 6,5 -> 0.065; 7% -> 0.07
-  if (!Number.isFinite(dec)) return null;
-  return clamp01(dec);
+  
+  // Si el usuario escribe un número sin % y es menor a 1, asumir que ya está en decimal
+  const numValue = Number(raw.replace(/,/g, '.').trim());
+  
+  // Si es un número válido
+  if (Number.isFinite(numValue)) {
+    // Si tiene % explícito, dividir por 100
+    if (String(raw).includes('%')) {
+      return clamp01(numValue / 100);
+    }
+    // Si es mayor a 1, asumir que es porcentaje (ej: 15 = 15%)
+    else if (numValue > 1) {
+      return clamp01(numValue / 100);
+    }
+    // Si es menor o igual a 1, asumir que ya está en decimal (ej: 0.15 = 15%)
+    else {
+      return clamp01(numValue);
+    }
+  }
+  
+  return null;
 }
 function pctDisplay(overrideVal, baseVal) {
   const candidate = overrideVal ?? baseVal;
   if (candidate === null || candidate === undefined) return "";
   const num = Number(candidate);
   if (!Number.isFinite(num)) return "";
-  return String(Math.round(num * 100 * 100) / 100); // hasta 2 decimales
+  
+  // Mostrar como porcentaje (multiplicar por 100)
+  const percentage = num * 100;
+  
+  // Si es un número entero, no mostrar decimales
+  if (percentage === Math.floor(percentage)) {
+    return String(percentage);
+  }
+  // Si tiene decimales, mostrar hasta 2 decimales
+  else {
+    return String(Math.round(percentage * 100) / 100);
+  }
 }
 
 // parseo archivos
@@ -1349,10 +1378,10 @@ export default function AppMargenes() {
                             }}
                             onBlur={(e) => {
                               const dec = parsePercentInput(e.target.value);
-                              e.target.value =
-                                dec == null
-                                  ? ""
-                                  : String(Math.round(dec * 10000) / 100);
+                              if (dec !== null && dec !== undefined) {
+                                // Mostrar como porcentaje en el display
+                                e.target.value = String(Math.round(dec * 100 * 100) / 100);
+                              }
                             }}
                             title="d1 (proveedor) %"
                             style={hardInput}
@@ -1378,10 +1407,10 @@ export default function AppMargenes() {
                             }}
                             onBlur={(e) => {
                               const dec = parsePercentInput(e.target.value);
-                              e.target.value =
-                                dec == null
-                                  ? ""
-                                  : String(Math.round(dec * 10000) / 100);
+                              if (dec !== null && dec !== undefined) {
+                                // Mostrar como porcentaje en el display
+                                e.target.value = String(Math.round(dec * 100 * 100) / 100);
+                              }
                             }}
                             title="d2 (proveedor) %"
                             style={hardInput}
