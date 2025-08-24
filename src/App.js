@@ -1429,22 +1429,26 @@ export default function AppMargenes() {
                               p.incremento_pct
                             )}
                             onChange={(e) => {
-                              const dec = parsePercentInput(e.target.value);
-                              setOverrides((prev) => {
-                                const next = { ...(prev[p.id] || {}) };
-                                if (dec === undefined) delete next.inc;
-                                else if (dec !== null) next.inc = dec;
-                                return { ...prev, [p.id]: next };
-                              });
+                              const raw = e.target.value;
+                              // Permitir números con coma, punto, % y espacios mientras se escribe
+                              if (raw === "" || /^[\d\s.,%]*$/.test(raw)) {
+                                const dec = raw === "" ? undefined : parsePercentInput(raw);
+                                setOverrides((prev) => {
+                                  const next = { ...(prev[p.id] || {}) };
+                                  if (dec === undefined) delete next.inc;
+                                  else if (dec !== null) next.inc = dec;
+                                  return { ...prev, [p.id]: next };
+                                });
+                              }
                             }}
                             onBlur={(e) => {
                               const dec = parsePercentInput(e.target.value);
-                              e.target.value =
-                                dec == null
-                                  ? ""
-                                  : String(Math.round(dec * 10000) / 100);
+                              if (dec !== null && dec !== undefined) {
+                                // Mostrar como porcentaje en el display
+                                e.target.value = String(Math.round(dec * 100 * 100) / 100);
+                              }
                             }}
-                            title="Incremento %"
+                            title="Incremento % - Ejemplos: 25.5 (=25.5%), 0.255 (=25.5%), 25.5% (=25.5%)"
                             style={hardInput}
                           />
                         </div>
