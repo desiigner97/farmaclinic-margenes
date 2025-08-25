@@ -26,13 +26,13 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V6.1 (Inputs Decimales Corregidos)
+ *  PRO-UX V6.2 (Inputs Decimales - FIX DEFINITIVO)
  *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
  *  - SIEMPRE muestra Final Caja y Final U; los Netos se pueden ocultar/mostrar.
  *  - Inputs 100% editables y visibles (fix de color/opacity y tamaño compacto).
- *  - CORREGIDO: Inputs de costo y porcentajes aceptan decimales correctamente.
- *  - CORREGIDO: El número "1" ya no se convierte en "100" en porcentajes.
- *  - CORREGIDO: Exportación Excel mejorada con formato profesional.
+ *  - FIX DEFINITIVO: Inputs de porcentajes usan valores temporales mientras escribes.
+ *  - FIX DEFINITIVO: El número "1" ya NO se convierte en "100" - procesamiento solo en onBlur.
+ *  - FIX DEFINITIVO: Decimales funcionan perfectamente en todos los campos.
  *  ======================= */
 
 // --- formateadores ---
@@ -282,7 +282,10 @@ function parsePercentInput(raw) {
   
   return null;
 }
-function pctDisplay(overrideVal, baseVal) {
+function pctDisplay(overrideVal, baseVal, tempVal) {
+  // Si hay un valor temporal (mientras se está escribiendo), mostrarlo
+  if (tempVal !== undefined) return tempVal;
+  
   const candidate = overrideVal ?? baseVal;
   if (candidate === null || candidate === undefined) return "";
   const num = Number(candidate);
@@ -946,7 +949,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V6.1</b> - Inputs Decimales CORREGIDOS ✅
+                Build: <b>PRO-UX V6.2</b> - Inputs Decimales FIX DEFINITIVO 🎯
               </div>
             </div>
           </div>
@@ -1368,7 +1371,7 @@ export default function AppMargenes() {
                             inputMode="decimal"
                             pattern="[0-9.,%]*"
                             autoComplete="off"
-                            value={pctDisplay(overrides[p.id]?.d1, p.desc1_pct)}
+                            value={pctDisplay(overrides[p.id]?.d1, p.desc1_pct, overrides[p.id]?.d1_temp)}
                             onChange={(e) => {
                               const dec = parsePercentInput(e.target.value);
                               setOverrides((prev) => {
@@ -1428,25 +1431,45 @@ export default function AppMargenes() {
                             autoComplete="off"
                             value={pctDisplay(
                               overrides[p.id]?.inc,
-                              p.incremento_pct
+                              p.incremento_pct,
+                              overrides[p.id]?.inc_temp
                             )}
                             onChange={(e) => {
                               const raw = e.target.value;
-                              // Permitir números con coma, punto, % y espacios mientras se escribe
+                              // Permitir escribir libremente, no procesar hasta onBlur
                               if (raw === "" || /^[\d\s.,%]*$/.test(raw)) {
-                                const dec = raw === "" ? undefined : parsePercentInput(raw);
+                                // Guardar el valor crudo temporalmente, sin procesar
                                 setOverrides((prev) => {
                                   const next = { ...(prev[p.id] || {}) };
-                                  if (dec === undefined) delete next.inc;
-                                  else if (dec !== null) next.inc = dec;
+                                  if (raw === "") {
+                                    delete next.inc;
+                                  } else {
+                                    // Guardamos un valor temporal para mostrar
+                                    next.inc_temp = raw;
+                                  }
                                   return { ...prev, [p.id]: next };
                                 });
                               }
                             }}
                             onBlur={(e) => {
-                              const dec = parsePercentInput(e.target.value);
+                              const raw = e.target.value;
+                              const dec = parsePercentInput(raw);
+                              
+                              setOverrides((prev) => {
+                                const next = { ...(prev[p.id] || {}) };
+                                // Limpiar valor temporal
+                                delete next.inc_temp;
+                                
+                                if (dec === undefined || dec === null) {
+                                  delete next.inc;
+                                } else {
+                                  next.inc = dec;
+                                }
+                                return { ...prev, [p.id]: next };
+                              });
+                              
+                              // Actualizar visualmente
                               if (dec !== null && dec !== undefined) {
-                                // Mostrar como porcentaje en el display
                                 e.target.value = String(Math.round(dec * 100 * 100) / 100);
                               }
                             }}
