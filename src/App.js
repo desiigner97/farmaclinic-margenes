@@ -26,12 +26,11 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V8.0 (ESTADO LOCAL PARA EDICIÓN - SOLUCIÓN DEFINITIVA)
- *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
- *  - PROBLEMA REAL IDENTIFICADO: React re-renderizaba y reseteaba inputs.
- *  - SOLUCIÓN DEFINITIVA: Estado local (editingInputs) mientras se edita.
- *  - SOLUCIÓN DEFINITIVA: onFocus guarda valor, onChange actualiza local, onBlur guarda final.
- *  - GARANTIZADO: Decimales funcionan sin interrupciones durante escritura.
+ *  PRO-UX V9.0 (MEJORAS DE BÚSQUEDA E HISTORIAL)
+ *  - BÚSQUEDA MEJORADA: Palabras individuales en cualquier orden.
+ *  - HISTORIAL COMPLETO: Más información, controles de orden y eliminación.
+ *  - GESTIÓN DE REGISTROS: Mover arriba/abajo, eliminar registros específicos.
+ *  - INFORMACIÓN DETALLADA: Parámetros, costos y precios unitarios visibles.
  *  ======================= */
 
 // --- formateadores ---
@@ -470,20 +469,30 @@ export default function AppMargenes() {
     return ["todas", ...Array.from(s).sort((a, b) => a.localeCompare(b, "es"))];
   }, [data]);
 
-  // búsqueda
+  // búsqueda mejorada - busca palabras individuales en cualquier orden
   const filtrados = useMemo(() => {
     const q = query.trim().toLowerCase();
     return data.filter((p) => {
-      const matchQ =
-        !q ||
-        p.nombre.toLowerCase().includes(q) ||
-        (p.proveedor || "").toLowerCase().includes(q) ||
-        (p.linea || "").toLowerCase().includes(q) ||
-        (p.codigo_barras || "").toLowerCase().includes(q) ||
-        (p.cod_ref || "").toLowerCase().includes(q);
-      const matchProv =
-        proveedorFilter === "todos" || p.proveedor === proveedorFilter;
+      if (!q) return true;
+      
+      // Dividir la búsqueda en palabras individuales
+      const searchWords = q.split(/\s+/).filter(word => word.length > 0);
+      
+      // Texto completo donde buscar
+      const searchText = [
+        p.nombre,
+        p.proveedor || "",
+        p.linea || "",
+        p.codigo_barras || "",
+        p.cod_ref || ""
+      ].join(" ").toLowerCase();
+      
+      // Todas las palabras deben estar presentes (en cualquier orden)
+      const matchQ = searchWords.every(word => searchText.includes(word));
+      
+      const matchProv = proveedorFilter === "todos" || p.proveedor === proveedorFilter;
       const matchLinea = lineaFilter === "todas" || p.linea === lineaFilter;
+      
       return matchQ && matchProv && matchLinea;
     });
   }, [data, query, proveedorFilter, lineaFilter]);
@@ -502,7 +511,30 @@ export default function AppMargenes() {
     else parseCSV(f, handler);
   }
 
-  function exportBitacora() {
+  // Funciones para gestionar historial
+  function eliminarRegistro(index) {
+    if (confirm("¿Estás seguro de eliminar este registro del historial?")) {
+      setBitacora(prev => prev.filter((_, i) => i !== index));
+    }
+  }
+
+  function moverRegistroArriba(index) {
+    if (index === 0) return;
+    setBitacora(prev => {
+      const nuevo = [...prev];
+      [nuevo[index - 1], nuevo[index]] = [nuevo[index], nuevo[index - 1]];
+      return nuevo;
+    });
+  }
+
+  function moverRegistroAbajo(index) {
+    setBitacora(prev => {
+      if (index === prev.length - 1) return prev;
+      const nuevo = [...prev];
+      [nuevo[index], nuevo[index + 1]] = [nuevo[index + 1], nuevo[index]];
+      return nuevo;
+    });
+  }
     if (!bitacora.length) {
       alert("No hay registros para exportar");
       return;
@@ -930,7 +962,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V8.2</b> - d1/d2 COPIA EXACTA de Inc (que funciona) 🔄
+                Build: <b>PRO-UX V9.0</b> - Búsqueda Inteligente + Historial Completo
               </div>
             </div>
           </div>
@@ -1641,102 +1673,169 @@ export default function AppMargenes() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {bitacora
-                  .slice()
-                  .reverse()
-                  .map((r, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "p-4 rounded-2xl border-2 flex flex-col gap-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg",
-                        isDark
-                          ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20"
-                          : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="font-bold text-lg mb-1 flex items-center gap-2">
-                            📦 {r.producto}
-                          </div>
-                          <div
-                            className={cn(
-                              "text-sm opacity-90 mb-2",
-                              isDark ? "text-slate-300" : "text-slate-600"
-                            )}
-                          >
-                            🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 
-                            📊 EAN: {r.codigo_barras || "-"} · Ref: {r.cod_ref || "-"}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span
-                              className={cn(
-                                "px-2 py-1 rounded-lg font-medium",
-                                isDark ? "bg-white/10" : "bg-slate-100"
-                              )}
-                            >
-                              📅 {new Date(r.fecha).toLocaleString()}
-                            </span>
-                            <span
-                              className={cn(
-                                "px-3 py-1 rounded-full font-bold text-sm",
-                                (r.estado || "").toLowerCase() === "validado"
-                                  ? isDark
-                                    ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
-                                    : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
-                                  : isDark
-                                  ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
-                                  : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
-                              )}
-                            >
-                              {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
-                            </span>
-                          </div>
+              <div className="space-y-3">
+                {bitacora.map((r, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg",
+                      isDark
+                        ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20"
+                        : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300"
+                    )}
+                  >
+                    {/* Header con controles */}
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-lg mb-1 flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          {r.producto}
                         </div>
-                        
-                        <div className="text-right space-y-2">
-                          <div className="grid grid-cols-1 gap-2">
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-blue-500/20 border border-blue-400/30" : "bg-blue-50 border border-blue-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1">💰 Costo</div>
-                              <div className="font-bold tabular-nums text-lg">
-                                Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}
-                              </div>
-                            </div>
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-amber-500/20 border border-amber-400/30" : "bg-amber-50 border border-amber-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1">🧮 Costo Final</div>
-                              <div className="font-bold tabular-nums text-lg">
-                                Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}
-                              </div>
-                            </div>
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                Precio Final
-                              </div>
-                              <div className="font-bold tabular-nums text-xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
-                                Bs {nf.format(
-                                  r.precio ??
-                                    r["precio final"] ??
-                                    r.precio_final_caja ??
-                                    0
-                                )}
-                              </div>
-                            </div>
+                        <div
+                          className={cn(
+                            "text-sm opacity-90 mb-2",
+                            isDark ? "text-slate-300" : "text-slate-600"
+                          )}
+                        >
+                          🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span>📊 EAN: {r.codigo_barras || "-"}</span>
+                          <span>📋 Ref: {r.cod_ref || "-"}</span>
+                          <span>📦 {r.unidades_por_caja || 1} unid/caja</span>
+                        </div>
+                      </div>
+                      
+                      {/* Controles de orden y eliminación */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={cn(
+                              "h-6 w-6 p-0 rounded",
+                              isDark ? "hover:bg-white/10" : "hover:bg-slate-100"
+                            )}
+                            disabled={i === 0}
+                            onClick={() => moverRegistroArriba(i)}
+                            title="Mover arriba"
+                          >
+                            ↑
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={cn(
+                              "h-6 w-6 p-0 rounded",
+                              isDark ? "hover:bg-white/10" : "hover:bg-slate-100"
+                            )}
+                            disabled={i === bitacora.length - 1}
+                            onClick={() => moverRegistroAbajo(i)}
+                            title="Mover abajo"
+                          >
+                            ↓
+                          </Button>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(
+                            "h-6 w-12 p-0 rounded text-xs",
+                            isDark 
+                              ? "hover:bg-red-500/20 border-red-500/30 text-red-300" 
+                              : "hover:bg-red-50 border-red-300 text-red-600"
+                          )}
+                          onClick={() => eliminarRegistro(i)}
+                          title="Eliminar registro"
+                        >
+                          🗑️
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Información detallada del cálculo */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                      {/* Parámetros usados */}
+                      <div className={cn(
+                        "p-3 rounded-xl",
+                        isDark ? "bg-blue-500/10 border border-blue-400/20" : "bg-blue-50 border border-blue-200"
+                      )}>
+                        <div className="text-xs font-bold mb-2 opacity-80">⚙️ Parámetros</div>
+                        <div className="space-y-1 text-xs">
+                          <div>d1: {pf(r.desc1_pct)} {r.desc1_pct_manual !== null && "⚡"}</div>
+                          <div>d2: {pf(r.desc2_pct)} {r.desc2_pct_manual !== null && "⚡"}</div>
+                          <div>Inc: {pf(r.incremento_pct)} {r.incremento_pct_manual !== null && "⚡"}</div>
+                          {r.parametros_manual && (
+                            <div className="text-amber-500 font-bold">⚡ Manual</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Costos */}
+                      <div className={cn(
+                        "p-3 rounded-xl",
+                        isDark ? "bg-orange-500/10 border border-orange-400/20" : "bg-orange-50 border border-orange-200"
+                      )}>
+                        <div className="text-xs font-bold mb-2 opacity-80">💰 Costos</div>
+                        <div className="space-y-1 text-xs">
+                          <div>Caja: Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}</div>
+                          <div>Unit: Bs {nf.format((r.costo ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1))}</div>
+                          <div className="font-semibold">Final: Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}</div>
+                        </div>
+                      </div>
+
+                      {/* Precios finales */}
+                      <div className={cn(
+                        "p-3 rounded-xl",
+                        isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
+                      )}>
+                        <div className="text-xs font-bold mb-2 opacity-80 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          Precios Final
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                            📦 Bs {nf.format(r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0)}
+                          </div>
+                          <div className="font-semibold text-sm">
+                            💊 Bs {nf.format(r.precio_final_unidad ?? 0)}
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-opacity-20">
+                      <span
+                        className={cn(
+                          isDark ? "text-slate-300/80" : "text-slate-600"
+                        )}
+                      >
+                        📅 {new Date(r.fecha).toLocaleString('es-BO', {
+                          year: 'numeric',
+                          month: '2-digit', 
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                      <span
+                        className={cn(
+                          "px-2 py-1 rounded-full font-bold",
+                          (r.estado || "").toLowerCase() === "validado"
+                            ? isDark
+                              ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
+                              : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
+                            : isDark
+                            ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
+                            : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
+                        )}
+                      >
+                        {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
