@@ -930,7 +930,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V8.0</b> - ESTADO LOCAL - PROBLEMA REACT SOLUCIONADO 🎯
+                Build: <b>PRO-UX V8.1</b> - TEST SIMPLE d1/d2 como TEXT inputs 🧪
               </div>
             </div>
           </div>
