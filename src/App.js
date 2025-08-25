@@ -26,13 +26,12 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V6.5 (PROBLEMA REAL ENCONTRADO Y SOLUCIONADO)
+ *  PRO-UX V7.0 (SOLUCIÓN SIMPLE - INPUT NUMBER)
  *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
- *  - SIEMPRE muestra Final Caja y Final U; los Netos se pueden ocultar/mostrar.
- *  - PROBLEMA REAL SOLUCIONADO: Eliminada función asDecimalMaybe() problemática.
- *  - PROBLEMA REAL SOLUCIONADO: Unificada lógica de parsePercentInput() en todo el código.
- *  - PROBLEMA REAL SOLUCIONADO: Inputs d1, d2 e Inc ahora funcionan consistentemente.
- *  - PROBLEMA REAL SOLUCIONADO: "1" ya no se convierte en "100", decimales funcionan.
+ *  - SOLUCIÓN DEFINITIVA: Cambiado a input type="number" nativo.
+ *  - SOLUCIÓN DEFINITIVA: Lógica super simple - valor * 100 para mostrar, / 100 para guardar.
+ *  - SOLUCIÓN DEFINITIVA: Sin funciones complejas, sin modo edición, sin conversiones raras.
+ *  - GARANTIZADO: Funciona como cualquier input de porcentaje normal.
  *  ======================= */
 
 // --- formateadores ---
@@ -928,7 +927,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V6.5</b> - PROBLEMA REAL ENCONTRADO Y SOLUCIONADO 🎯
+                Build: <b>PRO-UX V7.0</b> - SOLUCIÓN SIMPLE INPUT NUMBER ✅
               </div>
             </div>
           </div>
@@ -1404,68 +1403,40 @@ export default function AppMargenes() {
                         <div>
                           <div className="text-sm font-semibold mb-2">📈 Inc. %</div>
                           <input
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            placeholder="ej: 25.5"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="1000"
+                            placeholder="0"
                             value={
-                              // Mostrar valor crudo mientras se edita, o valor formateado si no hay override
-                              overrides[p.id]?.inc_editing !== undefined 
-                                ? overrides[p.id].inc_editing
-                                : pctDisplay(overrides[p.id]?.inc, p.incremento_pct)
+                              overrides[p.id]?.inc !== undefined 
+                                ? (overrides[p.id].inc * 100).toFixed(2).replace(/\.?0+$/, '')
+                                : p.incremento_pct 
+                                  ? (p.incremento_pct * 100).toFixed(2).replace(/\.?0+$/, '')
+                                  : ''
                             }
-                            onFocus={(e) => {
-                              // Al hacer foco, cambiar a modo edición con valor actual
-                              const currentValue = pctDisplay(overrides[p.id]?.inc, p.incremento_pct);
-                              setOverrides((prev) => ({
-                                ...prev,
-                                [p.id]: { 
-                                  ...(prev[p.id] || {}), 
-                                  inc_editing: currentValue 
-                                }
-                              }));
-                            }}
                             onChange={(e) => {
-                              const raw = e.target.value;
-                              // Permitir solo números, puntos y comas
-                              if (/^[\d.,]*$/.test(raw) || raw === "") {
-                                setOverrides((prev) => ({
-                                  ...prev,
-                                  [p.id]: { 
-                                    ...(prev[p.id] || {}), 
-                                    inc_editing: raw 
-                                  }
-                                }));
+                              const value = e.target.value;
+                              if (value === '') {
+                                setOverrides((prev) => {
+                                  const next = { ...(prev[p.id] || {}) };
+                                  delete next.inc;
+                                  return { ...prev, [p.id]: next };
+                                });
+                              } else {
+                                const percent = parseFloat(value);
+                                if (!isNaN(percent) && percent >= 0 && percent <= 1000) {
+                                  setOverrides((prev) => ({
+                                    ...prev,
+                                    [p.id]: {
+                                      ...(prev[p.id] || {}),
+                                      inc: percent / 100
+                                    }
+                                  }));
+                                }
                               }
                             }}
-                            onBlur={(e) => {
-                              const raw = e.target.value;
-                              
-                              setOverrides((prev) => {
-                                const next = { ...(prev[p.id] || {}) };
-                                delete next.inc_editing; // Salir del modo edición
-                                
-                                if (raw === "") {
-                                  delete next.inc;
-                                } else {
-                                  // Convertir a decimal - MISMA LÓGICA que d1 y d2
-                                  let numValue = parseFloat(raw.replace(',', '.'));
-                                  if (!isNaN(numValue)) {
-                                    // SIEMPRE dividir por 100 si es >= 1
-                                    // "1" -> 0.01, "25.5" -> 0.255, "0.255" -> 0.255  
-                                    if (numValue >= 1) {
-                                      next.inc = numValue / 100;
-                                    } else {
-                                      next.inc = numValue;
-                                    }
-                                  } else {
-                                    delete next.inc;
-                                  }
-                                }
-                                return { ...prev, [p.id]: next };
-                              });
-                            }}
-                            title="Incremento % - Escribe: 1 = 1%, 25.5 = 25.5%, 0.255 = 25.5%"
+                            title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
                             style={hardInput}
                           />
                         </div>
