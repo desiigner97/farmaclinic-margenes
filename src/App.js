@@ -26,12 +26,12 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V7.0 (SOLUCIÓN SIMPLE - INPUT NUMBER)
+ *  PRO-UX V8.0 (ESTADO LOCAL PARA EDICIÓN - SOLUCIÓN DEFINITIVA)
  *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
- *  - SOLUCIÓN DEFINITIVA: Cambiado a input type="number" nativo.
- *  - SOLUCIÓN DEFINITIVA: Lógica super simple - valor * 100 para mostrar, / 100 para guardar.
- *  - SOLUCIÓN DEFINITIVA: Sin funciones complejas, sin modo edición, sin conversiones raras.
- *  - GARANTIZADO: Funciona como cualquier input de porcentaje normal.
+ *  - PROBLEMA REAL IDENTIFICADO: React re-renderizaba y reseteaba inputs.
+ *  - SOLUCIÓN DEFINITIVA: Estado local (editingInputs) mientras se edita.
+ *  - SOLUCIÓN DEFINITIVA: onFocus guarda valor, onChange actualiza local, onBlur guarda final.
+ *  - GARANTIZADO: Decimales funcionan sin interrupciones durante escritura.
  *  ======================= */
 
 // --- formateadores ---
@@ -439,6 +439,9 @@ export default function AppMargenes() {
   const [costosIngresados, setCostosIngresados] = useState({});
   const [theme, setTheme] = useState("dark");
   const [overrides, setOverrides] = useState({});
+  
+  // NUEVO: Estados locales para inputs mientras se editan
+  const [editingInputs, setEditingInputs] = useState({});
 
   // toggle de netos
   const [showNetos, setShowNetos] = useState(false);
@@ -927,7 +930,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V7.1</b> - DECIMALES CORREGIDOS (sin toFixed) ✅
+                Build: <b>PRO-UX V8.0</b> - ESTADO LOCAL - PROBLEMA REACT SOLUCIONADO 🎯
               </div>
             </div>
           </div>
@@ -1409,14 +1412,40 @@ export default function AppMargenes() {
                             max="1000"
                             placeholder="0"
                             value={
-                              overrides[p.id]?.inc !== undefined 
+                              // Si está editando, usar valor local; si no, usar valor calculado
+                              editingInputs[`${p.id}_inc`] !== undefined
+                                ? editingInputs[`${p.id}_inc`]
+                                : overrides[p.id]?.inc !== undefined 
+                                  ? overrides[p.id].inc * 100
+                                  : p.incremento_pct 
+                                    ? p.incremento_pct * 100
+                                    : ''
+                            }
+                            onFocus={(e) => {
+                              // Al hacer foco, guardar valor actual en estado local
+                              const currentValue = overrides[p.id]?.inc !== undefined 
                                 ? overrides[p.id].inc * 100
                                 : p.incremento_pct 
                                   ? p.incremento_pct * 100
-                                  : ''
-                            }
+                                  : '';
+                              
+                              setEditingInputs(prev => ({
+                                ...prev,
+                                [`${p.id}_inc`]: currentValue
+                              }));
+                            }}
                             onChange={(e) => {
                               const value = e.target.value;
+                              // Actualizar solo el estado local mientras escribe
+                              setEditingInputs(prev => ({
+                                ...prev,
+                                [`${p.id}_inc`]: value
+                              }));
+                            }}
+                            onBlur={(e) => {
+                              const value = e.target.value;
+                              
+                              // Al perder foco, actualizar el estado principal y limpiar local
                               if (value === '') {
                                 setOverrides((prev) => {
                                   const next = { ...(prev[p.id] || {}) };
@@ -1435,6 +1464,13 @@ export default function AppMargenes() {
                                   }));
                                 }
                               }
+                              
+                              // Limpiar estado local
+                              setEditingInputs(prev => {
+                                const next = { ...prev };
+                                delete next[`${p.id}_inc`];
+                                return next;
+                              });
                             }}
                             title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
                             style={hardInput}
