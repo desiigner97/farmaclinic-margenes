@@ -26,12 +26,13 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V6.3 (Inputs DEFINITIVO - Modo Edición)
+ *  PRO-UX V6.5 (PROBLEMA REAL ENCONTRADO Y SOLUCIONADO)
  *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
  *  - SIEMPRE muestra Final Caja y Final U; los Netos se pueden ocultar/mostrar.
- *  - SOLUCION DEFINITIVA: Inputs usan modo edición (onFocus) vs modo vista.
- *  - SOLUCION DEFINITIVA: Solo números y puntos permitidos en onChange.
- *  - SOLUCION DEFINITIVA: Conversión simple en onBlur sin funciones complejas.
+ *  - PROBLEMA REAL SOLUCIONADO: Eliminada función asDecimalMaybe() problemática.
+ *  - PROBLEMA REAL SOLUCIONADO: Unificada lógica de parsePercentInput() en todo el código.
+ *  - PROBLEMA REAL SOLUCIONADO: Inputs d1, d2 e Inc ahora funcionan consistentemente.
+ *  - PROBLEMA REAL SOLUCIONADO: "1" ya no se convierte en "100", decimales funcionan.
  *  ======================= */
 
 // --- formateadores ---
@@ -243,61 +244,40 @@ function normalizarCabecera(c) {
   return s;
 }
 
-// porcentajes
-function asDecimalMaybe(x) {
-  if (x == null || x === "") return 0;
-  const s =
-    typeof x === "string" ? x.replace(/%/g, "").replace(/,/g, ".").trim() : x;
-  const n = Number(s);
-  if (!isFinite(n)) return 0;
-  return n > 1.5 ? n / 100 : n;
+// porcentajes - FUNCIONES SIMPLIFICADAS
+function parsePercentInput(raw) {
+  if (raw === "" || raw == null) return undefined;
+  
+  const numValue = parseFloat(String(raw).replace(',', '.').trim());
+  if (!Number.isFinite(numValue)) return null;
+  
+  // Lógica simple: si >= 1, dividir por 100; si < 1, usar tal como está
+  return numValue >= 1 ? numValue / 100 : numValue;
 }
+
 function clamp01(x) {
   const n = Number(x);
   if (!Number.isFinite(n)) return 0;
   return Math.min(Math.max(n, 0), 1);
 }
-function parsePercentInput(raw) {
-  if (raw === "" || raw == null) return undefined; // quitar override
-  
-  // Si el usuario escribe un número sin % y es menor a 1, asumir que ya está en decimal
-  const numValue = Number(raw.replace(/,/g, '.').trim());
-  
-  // Si es un número válido
-  if (Number.isFinite(numValue)) {
-    // Si tiene % explícito, dividir por 100
-    if (String(raw).includes('%')) {
-      return clamp01(numValue / 100);
-    }
-    // Si es mayor a 1, asumir que es porcentaje (ej: 15 = 15%)
-    else if (numValue > 1) {
-      return clamp01(numValue / 100);
-    }
-    // Si es menor o igual a 1, asumir que ya está en decimal (ej: 0.15 = 15%)
-    else {
-      return clamp01(numValue);
-    }
-  }
-  
-  return null;
-}
-function pctDisplay(overrideVal, baseVal, tempVal) {
-  // Si hay un valor temporal (mientras se está escribiendo), mostrarlo
-  if (tempVal !== undefined) return tempVal;
+
+function pctDisplay(overrideVal, baseVal, editingVal) {
+  // Si está en modo edición, mostrar el valor crudo
+  if (editingVal !== undefined) return editingVal;
   
   const candidate = overrideVal ?? baseVal;
   if (candidate === null || candidate === undefined) return "";
   const num = Number(candidate);
   if (!Number.isFinite(num)) return "";
   
-  // Mostrar como porcentaje (multiplicar por 100)
+  // Convertir decimal a porcentaje para mostrar
   const percentage = num * 100;
   
-  // Si es un número entero, no mostrar decimales
+  // Si es entero, no mostrar decimales
   if (percentage === Math.floor(percentage)) {
     return String(percentage);
   }
-  // Si tiene decimales, mostrar hasta 2 decimales
+  // Si tiene decimales, mostrar hasta 2
   else {
     return String(Math.round(percentage * 100) / 100);
   }
@@ -342,9 +322,9 @@ function parseCSV(file, onDone) {
           costo_caja = Number(cu) * unidades_por_caja;
         if (costo_caja == null && isFinite(cc)) costo_caja = Number(cc);
 
-        const desc1_pct = asDecimalMaybe(obj.desc1_pct);
-        const desc2_pct = asDecimalMaybe(obj.desc2_pct);
-        const incremento_pct = asDecimalMaybe(obj.incremento_pct);
+        const desc1_pct = parsePercentInput(obj.desc1_pct) || 0;
+        const desc2_pct = parsePercentInput(obj.desc2_pct) || 0;
+        const incremento_pct = parsePercentInput(obj.incremento_pct) || 0;
         const caso_especial = (obj.caso_especial ?? "").toString();
 
         if (!nombre) continue;
@@ -410,9 +390,9 @@ async function parseXLS(file, onDone) {
         costo_caja = Number(cu) * unidades_por_caja;
       if (costo_caja == null && isFinite(cc)) costo_caja = Number(cc);
 
-      const desc1_pct = asDecimalMaybe(obj.desc1_pct);
-      const desc2_pct = asDecimalMaybe(obj.desc2_pct);
-      const incremento_pct = asDecimalMaybe(obj.incremento_pct);
+      const desc1_pct = parsePercentInput(obj.desc1_pct) || 0;
+      const desc2_pct = parsePercentInput(obj.desc2_pct) || 0;
+      const incremento_pct = parsePercentInput(obj.incremento_pct) || 0;
       const caso_especial = (obj.caso_especial ?? "").toString();
 
       if (!nombre) continue;
@@ -948,7 +928,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V6.4</b> - d1/d2 CORREGIDOS igual que Inc ✅
+                Build: <b>PRO-UX V6.5</b> - PROBLEMA REAL ENCONTRADO Y SOLUCIONADO 🎯
               </div>
             </div>
           </div>
