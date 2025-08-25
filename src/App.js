@@ -948,7 +948,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V6.3</b> - Inputs SOLUCIÓN DEFINITIVA ⚡
+                Build: <b>PRO-UX V6.4</b> - d1/d2 CORREGIDOS igual que Inc ✅
               </div>
             </div>
           </div>
@@ -1468,12 +1468,16 @@ export default function AppMargenes() {
                                 if (raw === "") {
                                   delete next.inc;
                                 } else {
-                                  // Convertir a decimal: "1" -> 0.01, "25.5" -> 0.255, "15" -> 0.15
-                                  const numValue = parseFloat(raw.replace(',', '.'));
+                                  // Convertir a decimal - MISMA LÓGICA que d1 y d2
+                                  let numValue = parseFloat(raw.replace(',', '.'));
                                   if (!isNaN(numValue)) {
-                                    // Si el número es menor que 1, asumimos que ya está en decimal
-                                    // Si es mayor o igual a 1, asumimos que es porcentaje
-                                    next.inc = numValue < 1 ? numValue : numValue / 100;
+                                    // SIEMPRE dividir por 100 si es >= 1
+                                    // "1" -> 0.01, "25.5" -> 0.255, "0.255" -> 0.255  
+                                    if (numValue >= 1) {
+                                      next.inc = numValue / 100;
+                                    } else {
+                                      next.inc = numValue;
+                                    }
                                   } else {
                                     delete next.inc;
                                   }
