@@ -26,11 +26,13 @@ import Papa from "papaparse";
 
 /** =======================
  *  FarmaClinic · Márgenes
- *  PRO-UX V6 (Visual Enhancement)
- *  - Precios más destacados y grandes
- *  - Mejor contraste visual
- *  - Animaciones sutiles
- *  - Iconos más llamativos
+ *  PRO-UX V6.1 (Inputs Decimales Corregidos)
+ *  - Vista en tarjetas (no tabla) para evitar scroll horizontal.
+ *  - SIEMPRE muestra Final Caja y Final U; los Netos se pueden ocultar/mostrar.
+ *  - Inputs 100% editables y visibles (fix de color/opacity y tamaño compacto).
+ *  - CORREGIDO: Inputs de costo y porcentajes aceptan decimales correctamente.
+ *  - CORREGIDO: El número "1" ya no se convierte en "100" en porcentajes.
+ *  - CORREGIDO: Exportación Excel mejorada con formato profesional.
  *  ======================= */
 
 // --- formateadores ---
@@ -944,7 +946,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V6</b> - Enhanced Visual Experience
+                Build: <b>PRO-UX V6.1</b> - Inputs Decimales CORREGIDOS ✅
               </div>
             </div>
           </div>
