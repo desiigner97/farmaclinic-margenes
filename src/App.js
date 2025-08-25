@@ -927,7 +927,7 @@ export default function AppMargenes() {
             <div className="mt-2 flex items-center gap-2">
               <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V7.0</b> - SOLUCIÓN SIMPLE INPUT NUMBER ✅
+                Build: <b>PRO-UX V7.1</b> - DECIMALES CORREGIDOS (sin toFixed) ✅
               </div>
             </div>
           </div>
@@ -1410,9 +1410,9 @@ export default function AppMargenes() {
                             placeholder="0"
                             value={
                               overrides[p.id]?.inc !== undefined 
-                                ? (overrides[p.id].inc * 100).toFixed(2).replace(/\.?0+$/, '')
+                                ? overrides[p.id].inc * 100
                                 : p.incremento_pct 
-                                  ? (p.incremento_pct * 100).toFixed(2).replace(/\.?0+$/, '')
+                                  ? p.incremento_pct * 100
                                   : ''
                             }
                             onChange={(e) => {
@@ -1425,7 +1425,7 @@ export default function AppMargenes() {
                                 });
                               } else {
                                 const percent = parseFloat(value);
-                                if (!isNaN(percent) && percent >= 0 && percent <= 1000) {
+                                if (!isNaN(percent)) {
                                   setOverrides((prev) => ({
                                     ...prev,
                                     [p.id]: {
