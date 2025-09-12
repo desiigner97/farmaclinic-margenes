@@ -643,9 +643,6 @@ export default function AppMargenes() {
   // Estados locales para inputs mientras se editan
   const [editingInputs, setEditingInputs] = useState({});
 
-  // toggle de netos
-  const [showNetos, setShowNetos] = useState(false);
-
   // ========================================
   // ESTADOS PARA MÓDULO DE REVISIÓN
   // ========================================
