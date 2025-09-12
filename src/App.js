@@ -634,15 +634,12 @@ export default function AppMargenes() {
   const [theme, setTheme] = useState("dark");
   const [overrides, setOverrides] = useState({});
   const [vistaActiva, setVistaActiva] = useState("margenes");
-  
+
   // Estados locales para inputs mientras se editan
   const [editingInputs, setEditingInputs] = useState({});
 
   // toggle de netos
   const [showNetos, setShowNetos] = useState(false);
-  // Estados locales para inputs mientras se editan
-  const [editingInputs, setEditingInputs] = useState({});
-
   // ========================================
   // ESTADOS PARA MÓDULO DE REVISIÓN
   // ========================================
