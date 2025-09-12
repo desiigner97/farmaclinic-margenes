@@ -1522,7 +1522,7 @@ export default function AppMargenes() {
                     </div>
 
                     {/* Bloque de resultados CAJA - MAS DESTACADO */}
-                    <div className={cn(
+                     <div className={cn(
                       "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
                       isDark
                         ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30"
@@ -1540,10 +1540,20 @@ export default function AppMargenes() {
                             </div>
                           </div>
                         )}
+                        {/* AGREGAR: Costo Final Caja */}
+                        <div>
+                          <div className="text-sm opacity-90 mb-1">Costo Final Caja</div>
+                          <div className={cn(
+                            "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
+                            isDark ? "text-amber-300" : "text-amber-600"
+                          )}>
+                            Bs {nf.format(netoC)}
+                          </div>
+                        </div>
                         <div>
                           <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
                             <TrendingUp className="h-4 w-4" />
-                            Final Caja
+                            Precio Final Caja
                           </div>
                           <div className={cn(priceFinalClass, "price-highlight")}>
                             Bs {nf.format(finalC)}
@@ -1553,7 +1563,7 @@ export default function AppMargenes() {
                     </div>
 
                     {/* Bloque de resultados UNIDAD - MAS DESTACADO */}
-                    <div className={cn(
+                     <div className={cn(
                       "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
                       isDark
                         ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-400/30"
@@ -1571,10 +1581,20 @@ export default function AppMargenes() {
                             </div>
                           </div>
                         )}
+                        {/* AGREGAR: Costo Final Unitario */}
+                        <div>
+                          <div className="text-sm opacity-90 mb-1">Costo Final Unitario</div>
+                          <div className={cn(
+                            "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
+                            isDark ? "text-amber-300" : "text-amber-600"
+                          )}>
+                            Bs {nf.format(netoU)}
+                          </div>
+                        </div>
                         <div>
                           <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
                             <TrendingUp className="h-4 w-4" />
-                            Final Unitario
+                            Precio Final Unitario
                           </div>
                           <div className={cn(priceFinalClass, "price-highlight")}>
                             Bs {nf.format(finalU)}
@@ -1582,72 +1602,6 @@ export default function AppMargenes() {
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Acciones mejoradas */}
-                  <div className="mt-6 flex items-center gap-3 flex-wrap justify-center lg:justify-end">
-                    <Button
-                      size="lg"
-                      className="rounded-2xl text-white bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 shadow-2xl shadow-emerald-900/50 border-0 px-6 py-3 font-bold transition-all duration-300 hover:scale-105"
-                      onClick={() => validarYRegistrar(p)}
-                    >
-                      <CheckCircle2 className="h-5 w-5 mr-2" /> ✅ Validar y Registrar
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className={cn(
-                        "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
-                        isDark
-                          ? "bg-white/10 border-2 border-white/20 text-slate-100 hover:bg-white/15 shadow-lg"
-                          : "bg-white/90 border-2 border-slate-300 text-slate-800 hover:bg-slate-50 shadow-lg"
-                      )}
-                      onClick={() => copiarResumen(p)}
-                    >
-                      <ClipboardCopy className="h-5 w-5 mr-2" /> 📋 Copiar
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className={cn(
-                        "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
-                        isDark
-                          ? "bg-amber-500/10 border-2 border-amber-400/30 text-amber-200 hover:bg-amber-500/20 shadow-lg"
-                          : "bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 shadow-lg"
-                      )}
-                      disabled={!isManual}
-                      onClick={() => {
-                        setOverrides((prev) => {
-                          const n = { ...prev };
-                          delete n[p.id];
-                          return n;
-                        });
-                      }}
-                    >
-                      🔄 Restaurar
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {filtrados.length === 0 && (
-            <Card className={cardClass}>
-              <CardContent
-                className={cn(
-                  "text-center py-12",
-                  isDark ? "text-slate-300" : "text-slate-600"
-                )}
-              >
-                <div className="text-6xl mb-4">🔍</div>
-                <div className="text-xl font-semibold mb-2">Sin resultados</div>
-                <div className="text-base">Ajusta tu búsqueda o carga tu archivo CSV/XLSX</div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
         {/* ========================================
             TRANSACTION HISTORY SECTION
         ======================================== */}
