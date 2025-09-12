@@ -2344,4 +2344,3 @@ export default function AppMargenes() {
   );
 }
 
-export default AppMargenes;
