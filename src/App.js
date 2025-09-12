@@ -1743,7 +1743,7 @@ export default function AppMargenes() {
         {/* ========================================
             FOOTER SECTION
         ======================================== */}
-        <footer
+<footer
           className={cn(
             "text-center py-8 space-y-2",
             isDark ? "text-slate-300" : "text-slate-600"
@@ -1758,5 +1758,6 @@ export default function AppMargenes() {
           </div>
         </footer>
       </div>
+    </div>
   );
 }
