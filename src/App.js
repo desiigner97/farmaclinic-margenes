@@ -709,6 +709,76 @@ export default function AppMargenes() {
       console.error("Error cargando sesiones pendientes:", err);
     }
   }
+  // --- Helpers para vista de revisión ---
+async function abrirSesionParaRevision(sesion) {
+  try {
+    setSesionEnRevision(sesion);
+    // 1) Cargar líneas de la sesión
+    const { data: filas, error } = await supabase
+      .from('historial_calculos')
+      .select('*')
+      .eq('session_id', sesion.id)
+      .order('fecha_creacion', { ascending: true });
+    if (error) throw error;
+    setProductosRevision(filas || []);
+
+    // 2) (Opcional) Cargar precios “oficiales” si tienes tabla precios_sistema
+    const cods = (filas || []).flatMap(r => [r.codigo_barras, r.cod_ref]).filter(Boolean);
+    if (cods.length) {
+      const { data: ps, error: e2 } = await supabase
+        .from('precios_sistema')
+        .select('*')
+        .in('codigo_barras', cods);
+      if (!e2 && ps) {
+        const byCode = {};
+        for (const row of ps) {
+          if (row.codigo_barras) byCode[row.codigo_barras] = row;
+          if (row.cod_ref) byCode[row.cod_ref] = row;
+        }
+        setPreciosSistema(byCode);
+      } else {
+        setPreciosSistema({});
+      }
+    } else {
+      setPreciosSistema({});
+    }
+    setDecisiones({});
+  } catch (err) {
+    console.error('Error abriendo sesión en revisión:', err);
+  }
+}
+
+function diffPct(a, b) {
+  const A = Number(a), B = Number(b);
+  if (!isFinite(A) || !isFinite(B) || B === 0) return null;
+  return ((A - B) / B) * 100;
+}
+
+function setDecision(lineaId, payload) {
+  setDecisiones(prev => ({
+    ...prev,
+    [lineaId]: { ...(prev[lineaId] || {}), ...payload }
+  }));
+}
+
+async function finalizarRevisionActual() {
+  if (!sesionEnRevision) return;
+  try {
+    const { error } = await supabase
+      .from('sesiones_trabajo')
+      .update({ estado: 'revisada' })
+      .eq('id', sesionEnRevision.id);
+    if (error) throw error;
+    alert('Sesión marcada como revisada.');
+    setSesionEnRevision(null);
+    setProductosRevision([]);
+    setDecisiones({});
+    cargarSesionesPendientes();
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo finalizar la revisión.');
+  }
+}
 
   useEffect(() => {
     if (vistaActiva === "revision") {
@@ -1841,29 +1911,220 @@ export default function AppMargenes() {
           </div>
         )}
 
-        {vistaActiva === "revision" && (
-          <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
-            <header>
-              <h1
-                className={cn(
-                  "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
-                  isDark ? "bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300" : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
-                )}
-              >
-                ⚖️ Módulo de Revisión
-              </h1>
-              <p className={cn("mt-2 text-lg font-medium", isDark ? "text-slate-300/90" : "text-slate-600")}>Comparación de precios y toma de decisiones</p>
-            </header>
-
-            <Card className={cardClass}>
-              <CardContent className="text-center py-12">
-                <div className="text-6xl mb-4">🔄</div>
-                <div className="text-xl font-semibold mb-2">Módulo en construcción</div>
-                <div className="text-base">Aquí se implementará la comparación de precios</div>
-              </CardContent>
-            </Card>
-          </div>
+    {vistaActiva === "revision" && (
+  <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
+    <header>
+      <h1
+        className={cn(
+          "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
+          isDark
+            ? "bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300"
+            : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
         )}
+      >
+        ⚖️ Módulo de Revisión
+      </h1>
+      <p
+        className={cn(
+          "mt-2 text-lg font-medium",
+          isDark ? "text-slate-300/90" : "text-slate-600"
+        )}
+      >
+        Comparación de precios y toma de decisiones
+      </p>
+    </header>
+
+    {/* Layout de dos columnas: sesiones a la izquierda, detalle a la derecha */}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Columna izquierda: Sesiones pendientes */}
+      <div className="lg:col-span-4">
+        <Card className={cardClass}>
+          <CardHeader className="pb-2">
+            <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
+              📦 Sesiones pendientes ({sesionesPendientes.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {sesionesPendientes.length === 0 && (
+              <div className={cn("text-sm py-8 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
+                No hay sesiones para revisar.
+              </div>
+            )}
+            <div className="space-y-2">
+              {sesionesPendientes.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => abrirSesionParaRevision(s)}
+                  className={cn(
+                    "w-full text-left p-3 rounded-xl border-2 transition-all duration-200",
+                    sesionEnRevision?.id === s.id
+                      ? (isDark
+                          ? "bg-emerald-500/20 border-emerald-400/40"
+                          : "bg-emerald-50 border-emerald-300")
+                      : (isDark
+                          ? "bg-white/5 border-white/15 hover:bg-white/10"
+                          : "bg-white border-slate-200 hover:bg-slate-50")
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">{s.nombre}</div>
+                      <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
+                        Finalizada: {s.fecha_finalizacion ? new Date(s.fecha_finalizacion).toLocaleString() : "-"}
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "text-xs px-2 py-1 rounded-lg",
+                      isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                    )}>
+                      {s.total_productos ?? 0} ítems
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Columna derecha: Detalle de la sesión seleccionada */}
+      <div className="lg:col-span-8">
+        {!sesionEnRevision ? (
+          <Card className={cardClass}>
+            <CardContent className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
+              <div className="text-6xl mb-4">👈</div>
+              Selecciona una sesión para revisar.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className={cardClass}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
+                  Sesión: {sesionEnRevision.nombre}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "rounded-xl",
+                      isDark ? "bg-white/10 border-white/20 text-slate-100" : "bg-white border-slate-300 text-slate-800"
+                    )}
+                    onClick={finalizarRevisionActual}
+                  >
+                    ✅ Finalizar revisión
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {productosRevision.length === 0 ? (
+                <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
+                  Cargando líneas…
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {productosRevision.map((r) => {
+                    const code = r.codigo_barras || r.cod_ref;
+                    const ps = preciosSistema[code];
+                    const precioCalc = r.precio_final_caja ?? r["precio final"] ?? 0;
+                    const precioOficial = ps?.precio_caja ?? null;
+                    const d = precioOficial != null ? diffPct(precioCalc, precioOficial) : null;
+                    const badge =
+                      d == null
+                        ? { text: "s/ referencia", cls: isDark ? "bg-white/10" : "bg-slate-100" }
+                        : d > 0.5
+                          ? { text: `▲ ${d.toFixed(2)}%`, cls: isDark ? "bg-emerald-500/20" : "bg-emerald-100" }
+                          : d < -0.5
+                            ? { text: `▼ ${d.toFixed(2)}%`, cls: isDark ? "bg-rose-500/20" : "bg-rose-100" }
+                            : { text: `= ${d.toFixed(2)}%`, cls: isDark ? "bg-amber-500/20" : "bg-amber-100" };
+
+                    const dec = decisiones[r.id] || {};
+                    return (
+                      <div
+                        key={r.id}
+                        className={cn(
+                          "p-4 rounded-2xl border-2",
+                          isDark ? "bg-white/5 border-white/15" : "bg-white border-slate-200"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-base">{r.producto}</div>
+                            <div className={cn("text-xs mt-1", isDark ? "text-slate-400" : "text-slate-500")}>
+                              🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 📊 {r.codigo_barras || r.cod_ref || "-"}
+                            </div>
+                          </div>
+                          <span className={cn("text-xs px-2 py-1 rounded-lg font-semibold", badge.cls)}>
+                            {badge.text}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                          <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                            <div className="text-xs opacity-80 mb-1">Precio calculado</div>
+                            <div className="font-bold">Bs {nf.format(precioCalc)}</div>
+                          </div>
+                          <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                            <div className="text-xs opacity-80 mb-1">Precio sistema</div>
+                            <div className="font-bold">
+                              {precioOficial != null ? `Bs ${nf.format(precioOficial)}` : "—"}
+                            </div>
+                          </div>
+                          <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                            <div className="text-xs opacity-80 mb-1">Decisión</div>
+                            <Select
+                              value={dec.tipo || ""}
+                              onValueChange={(v) => setDecision(r.id, { tipo: v })}
+                            >
+                              <SelectTrigger className="h-9 rounded-xl">
+                                <SelectValue placeholder="Selecciona…" />
+                              </SelectTrigger>
+                              <SelectContent className={isDark ? "bg-slate-900 text-slate-100" : ""}>
+                                <SelectItem value="aprobado">Aprobar</SelectItem>
+                                <SelectItem value="rechazado">Rechazar</SelectItem>
+                                <SelectItem value="ajustar">Ajustar</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
+                            <div className="text-xs opacity-80 mb-1">Precio sugerido</div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full h-9 px-3 rounded-xl bg-transparent border"
+                              onChange={(e) => setDecision(r.id, { precio_sugerido: e.target.value })}
+                              value={dec.precio_sugerido || ""}
+                              placeholder="Bs 0.00"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <input
+                            type="text"
+                            className={cn(
+                              "w-full h-9 px-3 rounded-xl bg-transparent border",
+                              isDark ? "border-white/20" : "border-slate-300"
+                            )}
+                            placeholder="Motivo / comentario (opcional)…"
+                            value={dec.motivo || ""}
+                            onChange={(e) => setDecision(r.id, { motivo: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
       </div>
     </div>
   );
