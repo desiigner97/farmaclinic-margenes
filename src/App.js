@@ -2342,3 +2342,6 @@ export default function AppMargenes() {
       </div>
     </div>
   );
+}
+
+export default AppMargenes;
