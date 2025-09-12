@@ -1089,6 +1089,18 @@ function validarYRegistrar(p) {
               📊 Exportar Excel ({bitacora.length})
             </Button>
             <Button
+              onClick={cargarHistorialDesdeSupabase}
+              className={cn(
+                "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                isDark
+                  ? "bg-blue-600/80 hover:bg-blue-600 border-2 border-blue-500 backdrop-blur-xl text-white shadow-2xl shadow-blue-900/50"
+                  : "bg-blue-600 hover:bg-blue-700 border-2 border-blue-500 text-white shadow-xl shadow-blue-500/30"
+              )}
+            >
+              <Package className="h-5 w-5 mr-2" /> 
+              Cargar Historial
+            </Button>
+            <Button
               onClick={toggleTheme}
               aria-pressed={isDark}
               className="rounded-2xl text-white bg-gradient-to-r from-cyan-600 via-indigo-600 to-fuchsia-600 hover:from-cyan-500 hover:via-indigo-500 hover:to-fuchsia-500 shadow-2xl border-0 transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3"
@@ -1105,7 +1117,6 @@ function validarYRegistrar(p) {
             </Button>
           </div>
         </header>
-
         {/* ========================================
             FILTERS SECTION
         ======================================== */}
