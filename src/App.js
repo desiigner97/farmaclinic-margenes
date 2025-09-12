@@ -24,6 +24,12 @@ import {
 } from "lucide-react";
 import Papa from "papaparse";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { createClient } from '@supabase/supabase-js';
+
+// Configuración de Supabase
+const supabaseUrl = 'https://qavzzmdxprkimtiromjw.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhdnp6bWR4cHJraW10bHJibWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDcxOTAsImV4cCI6MjA3MzI4MzE5MH0.qN4CfWzeh2HhtJGzP9lgAlf3lDzZODmz2N-EcMyuOUo';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 /** =======================
  *  FarmaClinic · Márgenes
