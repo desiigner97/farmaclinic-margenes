@@ -705,7 +705,79 @@ export default function AppMargenes() {
   // ========================================
   // BUSINESS LOGIC HANDLERS
   // ========================================
-function validarYRegistrar(p) {
+// Estado de sesión actual
+  const [sesionActual, setSesionActual] = useState(null);
+
+  // Crear nueva sesión de trabajo
+  async function crearNuevaSesion() {
+    const nombreSesion = `Factura ${new Date().toLocaleDateString('es-BO')} - ${new Date().toLocaleTimeString('es-BO', {hour: '2-digit', minute: '2-digit'})}`;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sesiones_trabajo')
+        .insert([{
+          nombre: nombreSesion,
+          usuario_creador: 'facturador'
+        }])
+        .select();
+
+      if (error) {
+        console.error('Error creando sesión:', error);
+        alert('Error al crear nueva sesión');
+        return;
+      }
+
+      setSesionActual(data[0]);
+      setBitacora([]); // Limpiar historial local para nueva sesión
+      alert(`Nueva sesión creada: ${nombreSesion}`);
+
+    } catch (err) {
+      console.error('Error conectando con Supabase:', err);
+      alert('Error de conexión al crear sesión');
+    }
+  }
+
+  // Cargar sesión activa o crear una nueva al iniciar
+  useEffect(() => {
+    async function inicializarSesion() {
+      try {
+        // Buscar si hay una sesión en proceso
+        const { data, error } = await supabase
+          .from('sesiones_trabajo')
+          .select('*')
+          .eq('estado', 'en_proceso')
+          .eq('usuario_creador', 'facturador')
+          .order('fecha_inicio', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('Error buscando sesión:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          // Usar sesión existente
+          setSesionActual(data[0]);
+          cargarHistorialDeSesion(data[0].id);
+        } else {
+          // Crear nueva sesión automáticamente
+          crearNuevaSesion();
+        }
+      } catch (err) {
+        console.error('Error inicializando sesión:', err);
+      }
+    }
+
+    inicializarSesion();
+  }, []);
+
+  function validarYRegistrar(p) {
+    if (!sesionActual) {
+      alert("No hay sesión activa. Creando nueva sesión...");
+      crearNuevaSesion();
+      return;
+    }
+
     const entered = costosIngresados[p.id] || {};
     const upc =
       isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
@@ -722,6 +794,11 @@ function validarYRegistrar(p) {
   }
 
   async function registrarEnBitacora(p) {
+    if (!sesionActual) {
+      alert("No hay sesión activa");
+      return;
+    }
+
     const entered = costosIngresados[p.id] || {};
     const upc =
       isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
@@ -748,11 +825,28 @@ function validarYRegistrar(p) {
     const finalC = netoC * (1 + inc);
 
     const row = {
-  producto: "Medicamento de prueba",
-  precio_final_unitario: 15.50
-};
+      session_id: sesionActual.id,
+      session_name: sesionActual.nombre,
+      producto: p.nombre,
+      proveedor: p.proveedor,
+      linea: p.linea || "",
+      codigo_barras: p.codigo_barras || "",
+      cod_ref: p.cod_ref || "",
+      unidades_por_caja: upc,
+      costo_caja: baseC,
+      desc1_pct: d1,
+      desc2_pct: d2,
+      incremento_pct: inc,
+      costo_final_caja: netoC,
+      precio_final_caja: finalC,
+      precio_final_unitario: finalU,
+      parametros_manual: isManual,
+      estado: "pendiente_revision",
+      usuario: "facturador",
+      sector: "facturacion"
+    };
 
-try {
+    try {
       // Guardar en Supabase
       const { data, error } = await supabase
         .from('historial_calculos')
@@ -778,7 +872,14 @@ try {
       };
 
       setBitacora((prev) => [...prev, savedRow]);
-      alert('Registro guardado exitosamente en la base de datos');
+      
+      // Actualizar contador en sesión
+      await supabase
+        .from('sesiones_trabajo')
+        .update({ total_productos: bitacora.length + 1 })
+        .eq('id', sesionActual.id);
+
+      alert('Producto registrado en la sesión actual');
 
     } catch (err) {
       console.error('Error conectando con Supabase:', err);
@@ -786,16 +887,17 @@ try {
     }
   }
 
-  // Función para cargar historial desde Supabase
-  async function cargarHistorialDesdeSupabase() {
+  // Cargar historial de una sesión específica
+  async function cargarHistorialDeSesion(sessionId) {
     try {
       const { data, error } = await supabase
         .from('historial_calculos')
         .select('*')
+        .eq('session_id', sessionId)
         .order('fecha_creacion', { ascending: false });
 
       if (error) {
-        console.error('Error cargando historial:', error);
+        console.error('Error cargando historial de sesión:', error);
         return;
       }
 
@@ -816,6 +918,55 @@ try {
     } catch (err) {
       console.error('Error conectando con Supabase:', err);
     }
+  }
+
+  // Finalizar sesión actual para envío al revisor
+  async function finalizarSesion() {
+    if (!sesionActual || bitacora.length === 0) {
+      alert("No hay productos en la sesión actual para finalizar");
+      return;
+    }
+
+    if (!window.confirm(`¿Finalizar sesión "${sesionActual.nombre}" con ${bitacora.length} productos y enviarla para revisión?`)) {
+      return;
+    }
+
+    try {
+      // Actualizar estado de sesión
+      const { error } = await supabase
+        .from('sesiones_trabajo')
+        .update({ 
+          estado: 'enviada_revision',
+          fecha_finalizacion: new Date().toISOString(),
+          total_productos: bitacora.length
+        })
+        .eq('id', sesionActual.id);
+
+      if (error) {
+        console.error('Error finalizando sesión:', error);
+        alert('Error al finalizar sesión');
+        return;
+      }
+
+      alert(`Sesión "${sesionActual.nombre}" finalizada y enviada para revisión`);
+      
+      // Crear nueva sesión automáticamente
+      crearNuevaSesion();
+
+    } catch (err) {
+      console.error('Error conectando con Supabase:', err);
+      alert('Error de conexión al finalizar sesión');
+    }
+  }
+
+  // Función para cargar historial (ahora carga solo la sesión actual)
+  async function cargarHistorialDesdeSupabase() {
+    if (!sesionActual) {
+      alert("No hay sesión activa");
+      return;
+    }
+    
+    cargarHistorialDeSesion(sesionActual.id);
   }
 
   // Función para manejar drag and drop
