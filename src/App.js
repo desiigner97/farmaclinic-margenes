@@ -1188,10 +1188,35 @@ export default function AppMargenes() {
                 Build: <b>PRO-UX V8.2</b> - d1/d2 COPIA EXACTA de Inc (que funciona) 🔄
               </div>
             </div>
+            
+            {/* Indicador de sesión actual */}
+            {sesionActual && (
+              <div className="mt-3 flex items-center gap-2">
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold",
+                    isDark
+                      ? "bg-blue-500/20 border border-blue-400/30 text-blue-200"
+                      : "bg-blue-100 border border-blue-300 text-blue-700"
+                  )}
+                >
+                  <Package className="h-4 w-4" />
+                  Sesión: {sesionActual.nombre}
+                </div>
+                <div
+                  className={cn(
+                    "px-2 py-1 rounded-lg text-xs font-medium",
+                    isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  {bitacora.length} productos
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ÚNICO control de importación */}
+            {/* Control de importación */}
             <label
               className={cn(
                 "inline-flex items-center gap-3 text-sm px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 cursor-pointer",
@@ -1209,6 +1234,8 @@ export default function AppMargenes() {
                 className="hidden"
               />
             </label>
+
+            {/* Exportar Excel */}
             <Button
               onClick={() => exportBitacora(bitacora)}
               disabled={bitacora.length === 0}
@@ -1224,18 +1251,39 @@ export default function AppMargenes() {
               <FileDown className="h-5 w-5 mr-2" /> 
               📊 Exportar Excel ({bitacora.length})
             </Button>
+
+            {/* Finalizar Sesión */}
             <Button
-              onClick={cargarHistorialDesdeSupabase}
+              onClick={finalizarSesion}
+              disabled={!sesionActual || bitacora.length === 0}
+              className={cn(
+                "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                (!sesionActual || bitacora.length === 0)
+                  ? "opacity-50 cursor-not-allowed"
+                  : isDark
+                  ? "bg-purple-600/80 hover:bg-purple-600 border-2 border-purple-500 backdrop-blur-xl text-white shadow-2xl shadow-purple-900/50"
+                  : "bg-purple-600 hover:bg-purple-700 border-2 border-purple-500 text-white shadow-xl shadow-purple-500/30"
+              )}
+            >
+              <CheckCircle2 className="h-5 w-5 mr-2" /> 
+              Finalizar Sesión
+            </Button>
+
+            {/* Nueva Sesión */}
+            <Button
+              onClick={crearNuevaSesion}
               className={cn(
                 "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
                 isDark
-                  ? "bg-blue-600/80 hover:bg-blue-600 border-2 border-blue-500 backdrop-blur-xl text-white shadow-2xl shadow-blue-900/50"
-                  : "bg-blue-600 hover:bg-blue-700 border-2 border-blue-500 text-white shadow-xl shadow-blue-500/30"
+                  ? "bg-orange-600/80 hover:bg-orange-600 border-2 border-orange-500 backdrop-blur-xl text-white shadow-2xl shadow-orange-900/50"
+                  : "bg-orange-600 hover:bg-orange-700 border-2 border-orange-500 text-white shadow-xl shadow-orange-500/30"
               )}
             >
               <Package className="h-5 w-5 mr-2" /> 
-              Cargar Historial
+              Nueva Sesión
             </Button>
+
+            {/* Cambiar tema */}
             <Button
               onClick={toggleTheme}
               aria-pressed={isDark}
