@@ -1522,7 +1522,7 @@ export default function AppMargenes() {
                     </div>
 
                     {/* Bloque de resultados CAJA - MAS DESTACADO */}
-                     <div className={cn(
+                                         <div className={cn(
                       "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
                       isDark
                         ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30"
