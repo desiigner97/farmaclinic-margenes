@@ -1758,6 +1758,5 @@ export default function AppMargenes() {
           </div>
         </footer>
       </div>
-    </div>
   );
 }
