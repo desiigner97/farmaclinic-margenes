@@ -698,7 +698,7 @@ export default function AppMargenes() {
   // ========================================
   // BUSINESS LOGIC HANDLERS
   // ========================================
- function validarYRegistrar(p) {
+function validarYRegistrar(p) {
     const entered = costosIngresados[p.id] || {};
     const upc =
       isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
@@ -795,7 +795,7 @@ export default function AppMargenes() {
   }
 
   function eliminarRegistro(index) {
-    if (confirm("¿Estás seguro de eliminar este registro?")) {
+    if (window.confirm("¿Estás seguro de eliminar este registro?")) {
       setBitacora(prev => prev.filter((_, i) => i !== index));
     }
   }
