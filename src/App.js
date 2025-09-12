@@ -721,7 +721,7 @@ function validarYRegistrar(p) {
     registrarEnBitacora(p);
   }
 
-  function registrarEnBitacora(p) {
+  async function registrarEnBitacora(p) {
     const entered = costosIngresados[p.id] || {};
     const upc =
       isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
@@ -748,38 +748,89 @@ function validarYRegistrar(p) {
     const finalC = netoC * (1 + inc);
 
     const row = {
-      id: Date.now() + Math.random(), // ID único para gestión
-      fecha: new Date().toISOString(),
       producto: p.nombre,
       proveedor: p.proveedor,
       linea: p.linea || "",
       codigo_barras: p.codigo_barras || "",
       cod_ref: p.cod_ref || "",
       unidades_por_caja: upc,
-      costo_caja_ingresado: isFinite(entered.caja) ? Number(entered.caja) : "",
+      costo_caja: baseC,
       desc1_pct: d1,
       desc2_pct: d2,
       incremento_pct: inc,
-      desc1_pct_base: baseD1,
-      desc2_pct_base: baseD2,
-      incremento_pct_base: baseInc,
-      desc1_pct_manual: ov.d1 ?? null,
-      desc2_pct_manual: ov.d2 ?? null,
-      incremento_pct_manual: ov.inc ?? null,
-      parametros_manual: isManual,
-      costo_neto_unidad: netoU,
-      costo_neto_caja: netoC,
-      precio_final_unidad: finalU,
+      costo_final_caja: netoC,
       precio_final_caja: finalC,
-      costo: baseC,
-      "costo final": netoC,
-      precio: finalC,
-      "precio final": finalC,
-      estado: "validado",
-      caso_especial: p.caso_especial || "",
+      precio_final_unitario: finalU,
+      parametros_manual: isManual,
+      estado: "pendiente_revision",
       usuario: "facturador",
+      sector: "facturacion"
     };
-    setBitacora((prev) => [...prev, row]);
+
+    try {
+      // Guardar en Supabase
+      const { data, error } = await supabase
+        .from('historial_calculos')
+        .insert([row])
+        .select();
+
+      if (error) {
+        console.error('Error guardando en Supabase:', error);
+        alert('Error al guardar en la base de datos');
+        return;
+      }
+
+      // Agregar al estado local con el ID de Supabase
+      const savedRow = {
+        ...row,
+        id: data[0].id,
+        fecha: data[0].fecha_creacion,
+        // Mantener compatibilidad con código existente
+        "costo final": netoC,
+        precio: finalC,
+        "precio final": finalC,
+        fecha_creacion: data[0].fecha_creacion
+      };
+
+      setBitacora((prev) => [...prev, savedRow]);
+      alert('Registro guardado exitosamente en la base de datos');
+
+    } catch (err) {
+      console.error('Error conectando con Supabase:', err);
+      alert('Error de conexión con la base de datos');
+    }
+  }
+
+  // Función para cargar historial desde Supabase
+  async function cargarHistorialDesdeSupabase() {
+    try {
+      const { data, error } = await supabase
+        .from('historial_calculos')
+        .select('*')
+        .order('fecha_creacion', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando historial:', error);
+        return;
+      }
+
+      // Convertir datos de Supabase al formato local
+      const historialFormateado = data.map(row => ({
+        ...row,
+        fecha: row.fecha_creacion,
+        // Mantener compatibilidad
+        "costo final": row.costo_final_caja,
+        precio: row.precio_final_caja,
+        "precio final": row.precio_final_caja,
+        costo: row.costo_caja,
+        costo_caja_ingresado: row.costo_caja
+      }));
+
+      setBitacora(historialFormateado);
+
+    } catch (err) {
+      console.error('Error conectando con Supabase:', err);
+    }
   }
 
   // Función para manejar drag and drop
@@ -845,7 +896,6 @@ function validarYRegistrar(p) {
     ].join("\n");
     navigator.clipboard.writeText(texto);
   }
-
   // ========================================
   // STYLING CONSTANTS
   // ========================================
