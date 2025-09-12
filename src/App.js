@@ -640,6 +640,20 @@ export default function AppMargenes() {
 
   // toggle de netos
   const [showNetos, setShowNetos] = useState(false);
+  // Estados locales para inputs mientras se editan
+  const [editingInputs, setEditingInputs] = useState({});
+
+  // toggle de netos
+  const [showNetos, setShowNetos] = useState(false);
+
+  // ========================================
+  // ESTADOS PARA MÓDULO DE REVISIÓN
+  // ========================================
+  const [sesionesPendientes, setSesionesPendientes] = useState([]);
+  const [sesionEnRevision, setSesionEnRevision] = useState(null);
+  const [productosRevision, setProductosRevision] = useState([]);
+  const [preciosSistema, setPreciosSistema] = useState({});
+  const [decisiones, setDecisiones] = useState({});
 
   // ========================================
   // THEME MANAGEMENT
@@ -771,6 +785,19 @@ export default function AppMargenes() {
 
     inicializarSesion();
   }, []);
+  inicializarSesion();
+  }, []);
+
+  // ========================================
+  // EFFECT PARA MÓDULO DE REVISIÓN
+  // ========================================
+  useEffect(() => {
+    if (vistaActiva === "revision") {
+      cargarSesionesPendientes();
+    }
+  }, [vistaActiva]);
+
+  function validarYRegistrar(p) {
 
   function validarYRegistrar(p) {
     if (!sesionActual) {
@@ -969,6 +996,27 @@ export default function AppMargenes() {
     
     cargarHistorialDeSesion(sesionActual.id);
   }
+  
+  // ========================================
+  // FUNCIONES MÓDULO DE REVISIÓN
+  // ========================================
+  async function cargarSesionesPendientes() {
+    try {
+      const { data, error } = await supabase
+        .from('sesiones_trabajo')
+        .select('*')
+        .eq('estado', 'enviada_revision')
+        .order('fecha_finalizacion', { ascending: false });
+
+      if (error) throw error;
+      setSesionesPendientes(data || []);
+    } catch (err) {
+      console.error('Error cargando sesiones pendientes:', err);
+    }
+  }
+
+  // Función para manejar drag and drop
+  function handleDragEnd(result) {
 
   // Función para manejar drag and drop
   function handleDragEnd(result) {
