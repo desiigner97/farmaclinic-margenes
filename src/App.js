@@ -34,11 +34,14 @@ import Papa from "papaparse";
  *  - GARANTIZADO: Decimales funcionan sin interrupciones durante escritura.
  *  ======================= */
 
-// --- formateadores ---
+// ========================================
+// 🎨 FORMATTERS & NUMBER UTILITIES
+// ========================================
 const nf = new Intl.NumberFormat("es-BO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
 const pf = (v) =>
   new Intl.NumberFormat("es-BO", {
     style: "percent",
@@ -46,7 +49,69 @@ const pf = (v) =>
     maximumFractionDigits: 2,
   }).format(v ?? 0);
 
-// --- demo ---
+// util numérica (soporta 1.234,56 / 1,234.56 / 1234,56)
+function numBO(x) {
+  if (x == null || x === "") return undefined;
+  if (typeof x === "number") return Number.isFinite(x) ? x : undefined;
+  let s = String(x).trim();
+  if (!s) return undefined;
+  s = s.replace(/\s/g, "");
+  const hasComma = s.includes(","),
+    hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "");
+      s = s.replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma) s = s.replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// porcentajes - FUNCIONES SIMPLIFICADAS
+function parsePercentInput(raw) {
+  if (raw === "" || raw == null) return undefined;
+  
+  const numValue = parseFloat(String(raw).replace(',', '.').trim());
+  if (!Number.isFinite(numValue)) return null;
+  
+  // Lógica simple: si >= 1, dividir por 100; si < 1, usar tal como está
+  return numValue >= 1 ? numValue / 100 : numValue;
+}
+
+function clamp01(x) {
+  const n = Number(x);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(Math.max(n, 0), 1);
+}
+
+function pctDisplay(overrideVal, baseVal, editingVal) {
+  // Si está en modo edición, mostrar el valor crudo
+  if (editingVal !== undefined) return editingVal;
+  
+  const candidate = overrideVal ?? baseVal;
+  if (candidate === null || candidate === undefined) return "";
+  const num = Number(candidate);
+  if (!Number.isFinite(num)) return "";
+  
+  // Convertir decimal a porcentaje para mostrar
+  const percentage = num * 100;
+  
+  // Si es entero, no mostrar decimales
+  if (percentage === Math.floor(percentage)) {
+    return String(percentage);
+  }
+  // Si tiene decimales, mostrar hasta 2
+  else {
+    return String(Math.round(percentage * 100) / 100);
+  }
+}
+
+// ========================================
+// 📊 DEMO DATA & CONSTANTS
+// ========================================
 const DEMO = [
   {
     id: "7750001111111",
@@ -74,27 +139,9 @@ const DEMO = [
   },
 ];
 
-// --- util numérica (soporta 1.234,56 / 1,234.56 / 1234,56) ---
-function numBO(x) {
-  if (x == null || x === "") return undefined;
-  if (typeof x === "number") return Number.isFinite(x) ? x : undefined;
-  let s = String(x).trim();
-  if (!s) return undefined;
-  s = s.replace(/\s/g, "");
-  const hasComma = s.includes(","),
-    hasDot = s.includes(".");
-  if (hasComma && hasDot) {
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
-      s = s.replace(/\./g, "");
-      s = s.replace(",", ".");
-    } else {
-      s = s.replace(/,/g, "");
-    }
-  } else if (hasComma) s = s.replace(",", ".");
-  const n = Number(s);
-  return Number.isFinite(n) ? n : undefined;
-}
-
+// ========================================
+// 🔄 HEADER NORMALIZATION UTILITIES
+// ========================================
 function normalizarCabecera(c) {
   const s = (c || "").toString().trim().toLowerCase();
   if (
@@ -243,46 +290,9 @@ function normalizarCabecera(c) {
   return s;
 }
 
-// porcentajes - FUNCIONES SIMPLIFICADAS
-function parsePercentInput(raw) {
-  if (raw === "" || raw == null) return undefined;
-  
-  const numValue = parseFloat(String(raw).replace(',', '.').trim());
-  if (!Number.isFinite(numValue)) return null;
-  
-  // Lógica simple: si >= 1, dividir por 100; si < 1, usar tal como está
-  return numValue >= 1 ? numValue / 100 : numValue;
-}
-
-function clamp01(x) {
-  const n = Number(x);
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(Math.max(n, 0), 1);
-}
-
-function pctDisplay(overrideVal, baseVal, editingVal) {
-  // Si está en modo edición, mostrar el valor crudo
-  if (editingVal !== undefined) return editingVal;
-  
-  const candidate = overrideVal ?? baseVal;
-  if (candidate === null || candidate === undefined) return "";
-  const num = Number(candidate);
-  if (!Number.isFinite(num)) return "";
-  
-  // Convertir decimal a porcentaje para mostrar
-  const percentage = num * 100;
-  
-  // Si es entero, no mostrar decimales
-  if (percentage === Math.floor(percentage)) {
-    return String(percentage);
-  }
-  // Si tiene decimales, mostrar hasta 2
-  else {
-    return String(Math.round(percentage * 100) / 100);
-  }
-}
-
-// parseo archivos
+// ========================================
+// 🔄 FILE PARSERS (CSV/XLSX)
+// ========================================
 function parseCSV(file, onDone) {
   Papa.parse(file, {
     header: true,
@@ -351,6 +361,7 @@ function parseCSV(file, onDone) {
     },
   });
 }
+
 async function parseXLS(file, onDone) {
   try {
     const XLSX = await import("xlsx");
@@ -418,19 +429,195 @@ async function parseXLS(file, onDone) {
   }
 }
 
-// cálculos
+// ========================================
+// 🧮 BUSINESS LOGIC & CALCULATIONS
+// ========================================
 function aplicarDescuentosProveedor(c, d1 = 0, d2 = 0) {
   const D1 = Math.min(Math.max(Number(d1) || 0, 0), 1);
   const D2 = Math.min(Math.max(Number(d2) || 0, 0), 1);
   return Number(c || 0) * (1 - D1) * (1 - D2);
 }
+
 function precioFinalProveedor(c, d1, d2, inc) {
   const neto = aplicarDescuentosProveedor(c, d1, d2);
   const INC = Math.min(Math.max(Number(inc) || 0, 0), 10);
   return neto * (1 + INC);
 }
 
+// ========================================
+// 📤 EXPORT FUNCTIONALITY
+// ========================================
+function exportBitacora(bitacora) {
+  if (!bitacora.length) {
+    alert("No hay registros para exportar");
+    return;
+  }
+
+  try {
+    // Preparar datos para Excel con formato mejorado
+    const excelData = bitacora.map((r, index) => ({
+      // Información básica
+      'N°': index + 1,
+      'Fecha': new Date(r.fecha).toLocaleString('es-BO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      'Producto': r.producto || '',
+      'Proveedor': r.proveedor || '',
+      'Marca/Línea': r.linea || '',
+      
+      // Códigos
+      'Código de Barras': r.codigo_barras || '',
+      'Código Ref': r.cod_ref || '',
+      'Unidades por Caja': r.unidades_por_caja || 1,
+      
+      // Costos base
+      'Costo Caja (Bs)': Number(r.costo ?? r.costo_caja_ingresado ?? 0).toFixed(2),
+      'Costo Unitario (Bs)': Number((r.costo ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1)).toFixed(2),
+      
+      // Parámetros de cálculo
+      'Descuento 1 (%)': Number(r.desc1_pct * 100).toFixed(2),
+      'Descuento 2 (%)': Number(r.desc2_pct * 100).toFixed(2),
+      'Incremento (%)': Number(r.incremento_pct * 100).toFixed(2),
+      'Parámetros Manuales': r.parametros_manual ? 'SÍ' : 'NO',
+      
+      // Costos netos (después de descuentos)
+      'Costo Neto Caja (Bs)': Number(r["costo final"] ?? r.costo_neto_caja ?? 0).toFixed(2),
+      'Costo Neto Unitario (Bs)': Number(r.costo_neto_unidad ?? 0).toFixed(2),
+      
+      // Precios finales (después de incremento)
+      'PRECIO CAJA (Bs)': Number(r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0).toFixed(2),
+      'PRECIO FRACCIÓN (Bs)': Number(r.precio_final_unidad ?? 0).toFixed(2),
+      
+      // Márgenes calculados
+      'Margen Caja (Bs)': Number(
+        (r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0) - 
+        (r["costo final"] ?? r.costo_neto_caja ?? 0)
+      ).toFixed(2),
+      'Margen Unitario (Bs)': Number(
+        (r.precio_final_unidad ?? 0) - (r.costo_neto_unidad ?? 0)
+      ).toFixed(2),
+      
+      // Estado y observaciones
+      'Estado': (r.estado || 'pendiente').toUpperCase(),
+      'Caso Especial': r.caso_especial || '',
+      'Usuario': r.usuario || 'facturador'
+    }));
+
+    // Usar SheetJS para crear el Excel
+    import('xlsx').then(XLSX => {
+      // Crear libro de trabajo
+      const wb = XLSX.utils.book_new();
+      
+      // Crear hoja con los datos
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Configurar anchos de columna
+      const colWidths = [
+        { wch: 5 },   // N°
+        { wch: 16 },  // Fecha
+        { wch: 35 },  // Producto
+        { wch: 15 },  // Proveedor
+        { wch: 12 },  // Marca/Línea
+        { wch: 15 },  // Código de Barras
+        { wch: 12 },  // Código Ref
+        { wch: 8 },   // Unidades por Caja
+        { wch: 12 },  // Costo Caja
+        { wch: 12 },  // Costo Unitario
+        { wch: 10 },  // Descuento 1
+        { wch: 10 },  // Descuento 2
+        { wch: 10 },  // Incremento
+        { wch: 12 },  // Parámetros Manuales
+        { wch: 14 },  // Costo Neto Caja
+        { wch: 14 },  // Costo Neto Unitario
+        { wch: 14 },  // PRECIO CAJA
+        { wch: 14 },  // PRECIO FRACCIÓN
+        { wch: 12 },  // Margen Caja
+        { wch: 12 },  // Margen Unitario
+        { wch: 10 },  // Estado
+        { wch: 12 },  // Caso Especial
+        { wch: 10 }   // Usuario
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Establecer formato para las celdas de encabezado
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[address]) continue;
+        ws[address].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "4F46E5" } },
+          alignment: { horizontal: "center", vertical: "center" }
+        };
+      }
+      
+      // Agregar la hoja al libro
+      XLSX.utils.book_append_sheet(wb, ws, "Registro de Márgenes");
+      
+      // Crear hoja de resumen
+      const resumen = [
+        { 'Métrica': 'Total de productos procesados', 'Valor': bitacora.length },
+        { 'Métrica': 'Productos con parámetros manuales', 'Valor': bitacora.filter(r => r.parametros_manual).length },
+        { 'Métrica': 'Productos con casos especiales', 'Valor': bitacora.filter(r => r.caso_especial && r.caso_especial.toLowerCase() === 'si').length },
+        { 'Métrica': 'Promedio descuento 1 (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.desc1_pct * 100), 0) / bitacora.length).toFixed(2) },
+        { 'Métrica': 'Promedio descuento 2 (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.desc2_pct * 100), 0) / bitacora.length).toFixed(2) },
+        { 'Métrica': 'Promedio incremento (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.incremento_pct * 100), 0) / bitacora.length).toFixed(2) }
+      ];
+      
+      const wsResumen = XLSX.utils.json_to_sheet(resumen);
+      wsResumen['!cols'] = [{ wch: 35 }, { wch: 15 }];
+      
+      // Formato para encabezados del resumen
+      ['A1', 'B1'].forEach(cell => {
+        if (wsResumen[cell]) {
+          wsResumen[cell].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "059669" } },
+            alignment: { horizontal: "center", vertical: "center" }
+          };
+        }
+      });
+      
+      XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+      
+      // Crear el archivo Excel
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      // Descargar archivo
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `FarmaClinic_Margenes_${new Date().toISOString().slice(0, 10)}_${new Date().toTimeString().slice(0, 5).replace(':', '')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      alert(`✅ Excel exportado exitosamente con ${bitacora.length} registros`);
+    }).catch(err => {
+      console.error('Error al exportar:', err);
+      alert('Error al exportar el archivo Excel');
+    });
+    
+  } catch (error) {
+    console.error('Error en exportación:', error);
+    alert('Error al preparar la exportación');
+  }
+}
+
+// ========================================
+// 💊 MAIN COMPONENT - FARMACLINIC MARGENES
+// ========================================
 export default function AppMargenes() {
+  // Estados principales
   const [data, setData] = useState(DEMO);
   const [query, setQuery] = useState("");
   const [proveedorFilter, setProveedorFilter] = useState("todos");
@@ -440,13 +627,15 @@ export default function AppMargenes() {
   const [theme, setTheme] = useState("dark");
   const [overrides, setOverrides] = useState({});
   
-  // NUEVO: Estados locales para inputs mientras se editan
+  // Estados locales para inputs mientras se editan
   const [editingInputs, setEditingInputs] = useState({});
 
   // toggle de netos
   const [showNetos, setShowNetos] = useState(false);
 
-  // tema
+  // ========================================
+  // THEME MANAGEMENT
+  // ========================================
   useEffect(() => {
     const t = localStorage.getItem("fc_theme");
     if (t === "dark" || t === "light") setTheme(t);
@@ -458,19 +647,21 @@ export default function AppMargenes() {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const cn = (...xs) => xs.filter(Boolean).join(" ");
 
-  // filtros
+  // ========================================
+  // FILTERS & SEARCH LOGIC
+  // ========================================
   const proveedores = useMemo(() => {
     const s = new Set();
     data.forEach((p) => p.proveedor && s.add(p.proveedor));
     return ["todos", ...Array.from(s).sort((a, b) => a.localeCompare(b, "es"))];
   }, [data]);
+  
   const lineas = useMemo(() => {
     const s = new Set();
     data.forEach((p) => p.linea && s.add(p.linea));
     return ["todas", ...Array.from(s).sort((a, b) => a.localeCompare(b, "es"))];
   }, [data]);
 
-  // búsqueda
   const filtrados = useMemo(() => {
     const q = query.trim().toLowerCase();
     return data.filter((p) => {
@@ -488,7 +679,9 @@ export default function AppMargenes() {
     });
   }, [data, query, proveedorFilter, lineaFilter]);
 
-  // carga archivo
+  // ========================================
+  // FILE HANDLING
+  // ========================================
   function onFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -502,172 +695,9 @@ export default function AppMargenes() {
     else parseCSV(f, handler);
   }
 
-  function exportBitacora() {
-    if (!bitacora.length) {
-      alert("No hay registros para exportar");
-      return;
-    }
-
-    try {
-      // Preparar datos para Excel con formato mejorado
-      const excelData = bitacora.map((r, index) => ({
-        // Información básica
-        'N°': index + 1,
-        'Fecha': new Date(r.fecha).toLocaleString('es-BO', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        'Producto': r.producto || '',
-        'Proveedor': r.proveedor || '',
-        'Marca/Línea': r.linea || '',
-        
-        // Códigos
-        'Código de Barras': r.codigo_barras || '',
-        'Código Ref': r.cod_ref || '',
-        'Unidades por Caja': r.unidades_por_caja || 1,
-        
-        // Costos base
-        'Costo Caja (Bs)': Number(r.costo ?? r.costo_caja_ingresado ?? 0).toFixed(2),
-        'Costo Unitario (Bs)': Number((r.costo ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1)).toFixed(2),
-        
-        // Parámetros de cálculo
-        'Descuento 1 (%)': Number(r.desc1_pct * 100).toFixed(2),
-        'Descuento 2 (%)': Number(r.desc2_pct * 100).toFixed(2),
-        'Incremento (%)': Number(r.incremento_pct * 100).toFixed(2),
-        'Parámetros Manuales': r.parametros_manual ? 'SÍ' : 'NO',
-        
-        // Costos netos (después de descuentos)
-        'Costo Neto Caja (Bs)': Number(r["costo final"] ?? r.costo_neto_caja ?? 0).toFixed(2),
-        'Costo Neto Unitario (Bs)': Number(r.costo_neto_unidad ?? 0).toFixed(2),
-        
-        // Precios finales (después de incremento)
-        'PRECIO CAJA (Bs)': Number(r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0).toFixed(2),
-        'PRECIO FRACCIÓN (Bs)': Number(r.precio_final_unidad ?? 0).toFixed(2),
-        
-        // Márgenes calculados
-        'Margen Caja (Bs)': Number(
-          (r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0) - 
-          (r["costo final"] ?? r.costo_neto_caja ?? 0)
-        ).toFixed(2),
-        'Margen Unitario (Bs)': Number(
-          (r.precio_final_unidad ?? 0) - (r.costo_neto_unidad ?? 0)
-        ).toFixed(2),
-        
-        // Estado y observaciones
-        'Estado': (r.estado || 'pendiente').toUpperCase(),
-        'Caso Especial': r.caso_especial || '',
-        'Usuario': r.usuario || 'facturador'
-      }));
-
-      // Usar SheetJS para crear el Excel
-      import('xlsx').then(XLSX => {
-        // Crear libro de trabajo
-        const wb = XLSX.utils.book_new();
-        
-        // Crear hoja con los datos
-        const ws = XLSX.utils.json_to_sheet(excelData);
-        
-        // Configurar anchos de columna
-        const colWidths = [
-          { wch: 5 },   // N°
-          { wch: 16 },  // Fecha
-          { wch: 35 },  // Producto
-          { wch: 15 },  // Proveedor
-          { wch: 12 },  // Marca/Línea
-          { wch: 15 },  // Código de Barras
-          { wch: 12 },  // Código Ref
-          { wch: 8 },   // Unidades por Caja
-          { wch: 12 },  // Costo Caja
-          { wch: 12 },  // Costo Unitario
-          { wch: 10 },  // Descuento 1
-          { wch: 10 },  // Descuento 2
-          { wch: 10 },  // Incremento
-          { wch: 12 },  // Parámetros Manuales
-          { wch: 14 },  // Costo Neto Caja
-          { wch: 14 },  // Costo Neto Unitario
-          { wch: 14 },  // PRECIO CAJA
-          { wch: 14 },  // PRECIO FRACCIÓN
-          { wch: 12 },  // Margen Caja
-          { wch: 12 },  // Margen Unitario
-          { wch: 10 },  // Estado
-          { wch: 12 },  // Caso Especial
-          { wch: 10 }   // Usuario
-        ];
-        ws['!cols'] = colWidths;
-        
-        // Establecer formato para las celdas de encabezado
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const address = XLSX.utils.encode_cell({ r: 0, c: C });
-          if (!ws[address]) continue;
-          ws[address].s = {
-            font: { bold: true, color: { rgb: "FFFFFF" } },
-            fill: { fgColor: { rgb: "4F46E5" } },
-            alignment: { horizontal: "center", vertical: "center" }
-          };
-        }
-        
-        // Agregar la hoja al libro
-        XLSX.utils.book_append_sheet(wb, ws, "Registro de Márgenes");
-        
-        // Crear hoja de resumen
-        const resumen = [
-          { 'Métrica': 'Total de productos procesados', 'Valor': bitacora.length },
-          { 'Métrica': 'Productos con parámetros manuales', 'Valor': bitacora.filter(r => r.parametros_manual).length },
-          { 'Métrica': 'Productos con casos especiales', 'Valor': bitacora.filter(r => r.caso_especial && r.caso_especial.toLowerCase() === 'si').length },
-          { 'Métrica': 'Promedio descuento 1 (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.desc1_pct * 100), 0) / bitacora.length).toFixed(2) },
-          { 'Métrica': 'Promedio descuento 2 (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.desc2_pct * 100), 0) / bitacora.length).toFixed(2) },
-          { 'Métrica': 'Promedio incremento (%)', 'Valor': (bitacora.reduce((sum, r) => sum + (r.incremento_pct * 100), 0) / bitacora.length).toFixed(2) }
-        ];
-        
-        const wsResumen = XLSX.utils.json_to_sheet(resumen);
-        wsResumen['!cols'] = [{ wch: 35 }, { wch: 15 }];
-        
-        // Formato para encabezados del resumen
-        ['A1', 'B1'].forEach(cell => {
-          if (wsResumen[cell]) {
-            wsResumen[cell].s = {
-              font: { bold: true, color: { rgb: "FFFFFF" } },
-              fill: { fgColor: { rgb: "059669" } },
-              alignment: { horizontal: "center", vertical: "center" }
-            };
-          }
-        });
-        
-        XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
-        
-        // Crear el archivo Excel
-        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        
-        // Descargar archivo
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `FarmaClinic_Margenes_${new Date().toISOString().slice(0, 10)}_${new Date().toTimeString().slice(0, 5).replace(':', '')}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 100);
-        
-        alert(`✅ Excel exportado exitosamente con ${bitacora.length} registros`);
-      }).catch(err => {
-        console.error('Error al exportar:', err);
-        alert('Error al exportar el archivo Excel');
-      });
-      
-    } catch (error) {
-      console.error('Error en exportación:', error);
-      alert('Error al preparar la exportación');
-    }
-  }
-
+  // ========================================
+  // BUSINESS LOGIC HANDLERS
+  // ========================================
   function validarYRegistrar(p) {
     const entered = costosIngresados[p.id] || {};
     const upc =
@@ -785,7 +815,9 @@ export default function AppMargenes() {
     navigator.clipboard.writeText(texto);
   }
 
-  // estilos base y HARD override
+  // ========================================
+  // STYLING CONSTANTS
+  // ========================================
   const wrapperClass = cn(
     "min-h-screen w-full relative overflow-hidden",
     isDark ? "text-slate-100" : "text-slate-800"
@@ -871,6 +903,9 @@ export default function AppMargenes() {
       : "2px solid rgba(99,102,241,0.2)",
   };
 
+  // ========================================
+  // JSX RENDER - MAIN UI
+  // ========================================
   return (
     <div className={wrapperClass}>
       {/* override global */}
@@ -899,6 +934,9 @@ export default function AppMargenes() {
       {bgMain}
 
       <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
+        {/* ========================================
+            HEADER SECTION
+        ======================================== */}
         <header className="group flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1
@@ -955,7 +993,7 @@ export default function AppMargenes() {
               />
             </label>
             <Button
-              onClick={exportBitacora}
+              onClick={() => exportBitacora(bitacora)}
               disabled={bitacora.length === 0}
               className={cn(
                 "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
@@ -987,7 +1025,9 @@ export default function AppMargenes() {
           </div>
         </header>
 
-        {/* FILTROS */}
+        {/* ========================================
+            FILTERS SECTION
+        ======================================== */}
         <Card className={cardClass}>
           <CardHeader className="pb-3 sticky top-0 z-10 backdrop-blur-xl">
             <CardTitle
@@ -1121,7 +1161,9 @@ export default function AppMargenes() {
           </CardContent>
         </Card>
 
-        {/* RESULTADOS en tarjetas responsivas */}
+        {/* ========================================
+            PRODUCTS SECTION
+        ======================================== */}
         <div className="space-y-6">
           {filtrados.map((p) => {
             const entered = costosIngresados[p.id] || {};
@@ -1606,7 +1648,9 @@ export default function AppMargenes() {
           )}
         </div>
 
-        {/* HISTORIAL MEJORADO */}
+        {/* ========================================
+            TRANSACTION HISTORY SECTION
+        ======================================== */}
         <Card className={cardClass}>
           <CardHeader>
             <CardTitle
@@ -1742,6 +1786,9 @@ export default function AppMargenes() {
           </CardContent>
         </Card>
 
+        {/* ========================================
+            FOOTER SECTION
+        ======================================== */}
         <footer
           className={cn(
             "text-center py-8 space-y-2",
