@@ -633,6 +633,7 @@ export default function AppMargenes() {
   const [costosIngresados, setCostosIngresados] = useState({});
   const [theme, setTheme] = useState("dark");
   const [overrides, setOverrides] = useState({});
+  const [vistaActiva, setVistaActiva] = useState("margenes");
   
   // Estados locales para inputs mientras se editan
   const [editingInputs, setEditingInputs] = useState({});
