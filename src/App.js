@@ -1033,7 +1033,7 @@ export default function AppMargenes() {
     ].join("\n");
     navigator.clipboard.writeText(texto);
   }
-  }
+  
 
   // ========================================
   // SIDEBAR NAVIGATION COMPONENT
