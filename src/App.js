@@ -776,21 +776,19 @@ function validarYRegistrar(p) {
     setBitacora((prev) => [...prev, row]);
   }
 
-  // Funciones de gestión del historial
-  function moverRegistroArriba(index) {
-    if (index === 0) return;
-    setBitacora(prev => {
-      const newArray = [...prev];
-      [newArray[index - 1], newArray[index]] = [newArray[index], newArray[index - 1]];
-      return newArray;
-    });
-  }
+  // Función para manejar drag and drop
+  function handleDragEnd(result) {
+    if (!result.destination) return;
 
-  function moverRegistroAbajo(index) {
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
     setBitacora(prev => {
-      if (index === prev.length - 1) return prev;
-      const newArray = [...prev];
-      [newArray[index], newArray[index + 1]] = [newArray[index + 1], newArray[index]];
+      const newArray = Array.from(prev);
+      const [reorderedItem] = newArray.splice(sourceIndex, 1);
+      newArray.splice(destinationIndex, 0, reorderedItem);
       return newArray;
     });
   }
@@ -1714,6 +1712,14 @@ function validarYRegistrar(p) {
               )}>
                 {bitacora.length} registros
               </span>
+              {bitacora.length > 0 && (
+                <span className={cn(
+                  "text-xs px-2 py-1 rounded-lg",
+                  isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                )}>
+                  🔄 Arrastra para reordenar
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1731,171 +1737,185 @@ function validarYRegistrar(p) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {bitacora
-                  .slice()
-                  .reverse()
-                  .map((r, reversedIndex) => {
-                    const actualIndex = bitacora.length - 1 - reversedIndex;
-                    return (
-                      <div
-                        key={r.id || reversedIndex}
-                        className={cn(
-                          "p-4 rounded-2xl border-2 flex flex-col gap-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg relative",
-                          isDark
-                            ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20"
-                            : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300"
-                        )}
-                      >
-                        {/* Controles de gestión */}
-                        <div className="absolute top-3 right-3 flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={cn(
-                              "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100",
-                              isDark ? "hover:bg-white/10" : "hover:bg-slate-100"
-                            )}
-                            onClick={() => moverRegistroArriba(actualIndex)}
-                            disabled={actualIndex === 0}
-                            title="Mover arriba"
-                          >
-                            ⬆️
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={cn(
-                              "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100",
-                              isDark ? "hover:bg-white/10" : "hover:bg-slate-100"
-                            )}
-                            onClick={() => moverRegistroAbajo(actualIndex)}
-                            disabled={actualIndex === bitacora.length - 1}
-                            title="Mover abajo"
-                          >
-                            ⬇️
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={cn(
-                              "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100 text-red-500 hover:text-red-400",
-                              isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"
-                            )}
-                            onClick={() => eliminarRegistro(actualIndex)}
-                            title="Eliminar registro"
-                          >
-                            🗑️
-                          </Button>
-                        </div>
-
-                        <div className="flex items-start justify-between gap-4 pr-24">
-                          <div className="min-w-0">
-                            <div className="font-bold text-lg mb-1 flex items-center gap-2">
-                              📦 {r.producto}
-                            </div>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="historial">
+                  {(provided, snapshot) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className={cn(
+                        "space-y-4 transition-colors duration-200",
+                        snapshot.isDraggingOver && (isDark ? "bg-white/5" : "bg-slate-50")
+                      )}
+                    >
+                      {bitacora.map((r, index) => (
+                        <Draggable 
+                          key={r.id || `item-${index}`} 
+                          draggableId={String(r.id || `item-${index}`)} 
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
                             <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
                               className={cn(
-                                "text-sm opacity-90 mb-2",
-                                isDark ? "text-slate-300" : "text-slate-600"
+                                "p-4 rounded-2xl border-2 flex flex-col gap-3 transition-all duration-300 relative",
+                                snapshot.isDragging 
+                                  ? isDark
+                                    ? "bg-gradient-to-br from-white/20 to-white/10 border-white/40 shadow-2xl scale-105 rotate-1"
+                                    : "bg-gradient-to-br from-white to-slate-50 border-slate-400 shadow-2xl scale-105 rotate-1"
+                                  : isDark
+                                    ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20 hover:scale-[1.02] hover:shadow-lg"
+                                    : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300 hover:scale-[1.02] hover:shadow-lg"
                               )}
                             >
-                              🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 
-                              📊 EAN: {r.codigo_barras || "-"} · Ref: {r.cod_ref || "-"}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span
-                                className={cn(
-                                  "px-2 py-1 rounded-lg font-medium",
-                                  isDark ? "bg-white/10" : "bg-slate-100"
-                                )}
-                              >
-                                📅 {new Date(r.fecha).toLocaleString()}
-                              </span>
-                              <span
-                                className={cn(
-                                  "px-3 py-1 rounded-full font-bold text-sm",
-                                  (r.estado || "").toLowerCase() === "validado"
-                                    ? isDark
-                                      ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
-                                      : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
-                                    : isDark
-                                    ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
-                                    : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
-                                )}
-                              >
-                                {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
-                              </span>
-                              <span
-                                className={cn(
-                                  "text-xs px-2 py-1 rounded-lg font-medium",
-                                  isDark ? "bg-indigo-500/20 text-indigo-200" : "bg-indigo-100 text-indigo-700"
-                                )}
-                              >
-                                #{actualIndex + 1}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-blue-500/20 border border-blue-400/30" : "bg-blue-50 border border-blue-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1">💰 Costo</div>
-                              <div className="font-bold tabular-nums text-lg">
-                                Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}
+                              {/* Handle de arrastre y botón eliminar */}
+                              <div className="absolute top-3 right-3 flex items-center gap-2">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className={cn(
+                                    "h-8 w-8 rounded-lg flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-200",
+                                    isDark 
+                                      ? "bg-white/10 hover:bg-white/20 text-slate-300 hover:text-slate-100" 
+                                      : "bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700"
+                                  )}
+                                  title="Arrastra para reordenar"
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <circle cx="4" cy="4" r="1.5"/>
+                                    <circle cx="12" cy="4" r="1.5"/>
+                                    <circle cx="4" cy="8" r="1.5"/>
+                                    <circle cx="12" cy="8" r="1.5"/>
+                                    <circle cx="4" cy="12" r="1.5"/>
+                                    <circle cx="12" cy="12" r="1.5"/>
+                                  </svg>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className={cn(
+                                    "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100 text-red-500 hover:text-red-400",
+                                    isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"
+                                  )}
+                                  onClick={() => eliminarRegistro(index)}
+                                  title="Eliminar registro"
+                                >
+                                  🗑️
+                                </Button>
                               </div>
-                            </div>
-                            
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-amber-500/20 border border-amber-400/30" : "bg-amber-50 border border-amber-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1">🧮 Costo Final</div>
-                              <div className="font-bold tabular-nums text-lg">
-                                Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}
-                              </div>
-                            </div>
-                            
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                Precio Final
-                              </div>
-                              <div className="font-bold tabular-nums text-xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
-                                Bs {nf.format(
-                                  r.precio ??
-                                    r["precio final"] ??
-                                    r.precio_final_caja ??
-                                    0
-                                )}
-                              </div>
-                            </div>
 
-                            {/* NUEVO: Precio Unitario Final */}
-                            <div className={cn(
-                              "px-3 py-2 rounded-xl",
-                              isDark ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30" : "bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200"
-                            )}>
-                              <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
-                                💊 Precio Unit.
+                              <div className="flex items-start justify-between gap-4 pr-20">
+                                <div className="min-w-0">
+                                  <div className="font-bold text-lg mb-1 flex items-center gap-2">
+                                    📦 {r.producto}
+                                  </div>
+                                  <div
+                                    className={cn(
+                                      "text-sm opacity-90 mb-2",
+                                      isDark ? "text-slate-300" : "text-slate-600"
+                                    )}
+                                  >
+                                    🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 
+                                    📊 EAN: {r.codigo_barras || "-"} · Ref: {r.cod_ref || "-"}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <span
+                                      className={cn(
+                                        "px-2 py-1 rounded-lg font-medium",
+                                        isDark ? "bg-white/10" : "bg-slate-100"
+                                      )}
+                                    >
+                                      📅 {new Date(r.fecha).toLocaleString()}
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "px-3 py-1 rounded-full font-bold text-sm",
+                                        (r.estado || "").toLowerCase() === "validado"
+                                          ? isDark
+                                            ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
+                                            : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
+                                          : isDark
+                                          ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
+                                          : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
+                                      )}
+                                    >
+                                      {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "text-xs px-2 py-1 rounded-lg font-medium",
+                                        isDark ? "bg-indigo-500/20 text-indigo-200" : "bg-indigo-100 text-indigo-700"
+                                      )}
+                                    >
+                                      #{index + 1}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="font-bold tabular-nums text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
-                                Bs {nf.format(r.precio_final_unidad ?? 0)}
+                              
+                              <div className="text-right">
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                  <div className={cn(
+                                    "px-3 py-2 rounded-xl",
+                                    isDark ? "bg-blue-500/20 border border-blue-400/30" : "bg-blue-50 border border-blue-200"
+                                  )}>
+                                    <div className="text-xs opacity-80 mb-1">💰 Costo</div>
+                                    <div className="font-bold tabular-nums text-lg">
+                                      Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className={cn(
+                                    "px-3 py-2 rounded-xl",
+                                    isDark ? "bg-amber-500/20 border border-amber-400/30" : "bg-amber-50 border border-amber-200"
+                                  )}>
+                                    <div className="text-xs opacity-80 mb-1">🧮 Costo Final</div>
+                                    <div className="font-bold tabular-nums text-lg">
+                                      Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className={cn(
+                                    "px-3 py-2 rounded-xl",
+                                    isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
+                                  )}>
+                                    <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
+                                      <TrendingUp className="h-3 w-3" />
+                                      Precio Final
+                                    </div>
+                                    <div className="font-bold tabular-nums text-xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                                      Bs {nf.format(
+                                        r.precio ??
+                                          r["precio final"] ??
+                                          r.precio_final_caja ??
+                                          0
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Precio Unitario Final */}
+                                  <div className={cn(
+                                    "px-3 py-2 rounded-xl",
+                                    isDark ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30" : "bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200"
+                                  )}>
+                                    <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
+                                      💊 Precio Unit.
+                                    </div>
+                                    <div className="font-bold tabular-nums text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
+                                      Bs {nf.format(r.precio_final_unidad ?? 0)}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
             )}
           </CardContent>
         </Card>
