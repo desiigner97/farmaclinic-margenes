@@ -1033,6 +1033,130 @@ export default function AppMargenes() {
     ].join("\n");
     navigator.clipboard.writeText(texto);
   }
+  }
+
+  // ========================================
+  // SIDEBAR NAVIGATION COMPONENT
+  // ========================================
+  const Sidebar = () => {
+    const menuItems = [
+      {
+        id: "margenes",
+        icon: "💊",
+        title: "Módulo de Márgenes",
+        description: "Cálculo de precios",
+        color: isDark ? "from-indigo-500/20 to-purple-500/20 border-indigo-400/30" : "from-indigo-100 to-purple-100 border-indigo-300"
+      },
+      {
+        id: "revision", 
+        icon: "⚖️",
+        title: "Módulo de Revisión",
+        description: "Comparación y decisiones",
+        color: isDark ? "from-emerald-500/20 to-green-500/20 border-emerald-400/30" : "from-emerald-100 to-green-100 border-emerald-300"
+      }
+    ];
+
+    return (
+      <div className={cn(
+        "w-80 h-screen fixed left-0 top-0 z-50 p-6 overflow-y-auto",
+        isDark ? "bg-slate-900/95 border-r border-white/20" : "bg-white/95 border-r border-slate-200"
+      )}>
+        <div className="mb-8">
+          <h2 className={cn(
+            "text-2xl font-bold bg-clip-text text-transparent",
+            isDark 
+              ? "bg-gradient-to-r from-indigo-300 to-purple-300"
+              : "bg-gradient-to-r from-indigo-600 to-purple-600"
+          )}>
+            FarmaClinic
+          </h2>
+          <p className={cn(
+            "text-sm mt-1",
+            isDark ? "text-slate-400" : "text-slate-600"
+          )}>
+            Sistema de Gestión
+          </p>
+        </div>
+
+        <nav className="space-y-4">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setVistaActiva(item.id)}
+              className={cn(
+                "w-full p-4 rounded-2xl border-2 text-left transition-all duration-300 hover:scale-105",
+                vistaActiva === item.id
+                  ? `bg-gradient-to-br ${item.color} shadow-lg scale-105`
+                  : isDark
+                    ? "bg-white/5 border-white/10 hover:bg-white/10"
+                    : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{item.icon}</span>
+                <div>
+                  <div className={cn(
+                    "font-bold text-base",
+                    vistaActiva === item.id 
+                      ? isDark ? "text-white" : "text-slate-800"
+                      : isDark ? "text-slate-200" : "text-slate-700"
+                  )}>
+                    {item.title}
+                  </div>
+                  <div className={cn(
+                    "text-sm",
+                    vistaActiva === item.id
+                      ? isDark ? "text-slate-300" : "text-slate-600" 
+                      : isDark ? "text-slate-400" : "text-slate-500"
+                  )}>
+                    {item.description}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </nav>
+
+        {sesionActual && vistaActiva === "margenes" && (
+          <div className={cn(
+            "mt-8 p-4 rounded-2xl border-2",
+            isDark 
+              ? "bg-blue-500/10 border-blue-400/30" 
+              : "bg-blue-50 border-blue-200"
+          )}>
+            <div className="text-sm font-bold mb-2">Sesión Actual</div>
+            <div className={cn(
+              "text-sm mb-1",
+              isDark ? "text-slate-300" : "text-slate-600"
+            )}>
+              {sesionActual.nombre}
+            </div>
+            <div className={cn(
+              "text-xs",
+              isDark ? "text-slate-400" : "text-slate-500"
+            )}>
+              {bitacora.length} productos registrados
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <Button
+            onClick={toggleTheme}
+            className={cn(
+              "w-full rounded-2xl",
+              isDark
+                ? "bg-white/10 border-2 border-white/20 text-white hover:bg-white/20"
+                : "bg-slate-100 border-2 border-slate-300 text-slate-800 hover:bg-slate-200"
+            )}
+          >
+            {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+            {isDark ? "Modo Claro" : "Modo Oscuro"}
+          </Button>
+        </div>
+      </div>
+    );
+  };
   // ========================================
   // STYLING CONSTANTS
   // ========================================
@@ -1124,9 +1248,9 @@ export default function AppMargenes() {
   // ========================================
   // JSX RENDER - MAIN UI
   // ========================================
-  return (
+ return (
     <div className={wrapperClass}>
-      {/* override global */}
+      {/* Global styles */}
       <style>{`
         input, input[type="text"], input[type="number"]{
           color: inherit !important;
@@ -1151,1044 +1275,1070 @@ export default function AppMargenes() {
 
       {bgMain}
 
-      <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
-        {/* ========================================
-            HEADER SECTION
-        ======================================== */}
-        <header className="group flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1
-              className={cn(
-                "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
-                isDark
-                  ? "bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-cyan-300"
-                  : "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600"
-              )}
-            >
-              💊 Módulo de Márgenes
-            </h1>
-            <p
-              className={cn(
-                "mt-2 text-lg font-medium",
-                isDark ? "text-slate-300/90" : "text-slate-600"
-              )}
-            >
-              Descuentos de proveedor en cascada + incremento.{" "}
-              <span
-                className={cn(
-                  "font-bold",
-                  isDark ? "text-emerald-300" : "text-emerald-600"
-                )}
-              >
-                Sistema de Facturación Profesional
-              </span>
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Build: <b>PRO-UX V8.2</b> - d1/d2 COPIA EXACTA de Inc (que funciona) 🔄
-              </div>
-            </div>
-            
-            {/* Indicador de sesión actual */}
-            {sesionActual && (
-              <div className="mt-3 flex items-center gap-2">
-                <div
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main content area */}
+      <div className="ml-80 min-h-screen">
+        {vistaActiva === "margenes" && (
+          <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
+            {/* ========================================
+                HEADER SECTION
+            ======================================== */}
+            <header className="group flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1
                   className={cn(
-                    "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold",
+                    "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
                     isDark
-                      ? "bg-blue-500/20 border border-blue-400/30 text-blue-200"
-                      : "bg-blue-100 border border-blue-300 text-blue-700"
+                      ? "bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-cyan-300"
+                      : "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600"
                   )}
                 >
-                  <Package className="h-4 w-4" />
-                  Sesión: {sesionActual.nombre}
+                  💊 Módulo de Márgenes
+                </h1>
+                <p
+                  className={cn(
+                    "mt-2 text-lg font-medium",
+                    isDark ? "text-slate-300/90" : "text-slate-600"
+                  )}
+                >
+                  Descuentos de proveedor en cascada + incremento.{" "}
+                  <span
+                    className={cn(
+                      "font-bold",
+                      isDark ? "text-emerald-300" : "text-emerald-600"
+                    )}
+                  >
+                    Sistema de Facturación Profesional
+                  </span>
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Build: <b>PRO-UX V8.2</b> - d1/d2 COPIA EXACTA de Inc (que funciona) 🔄
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "px-2 py-1 rounded-lg text-xs font-medium",
-                    isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
-                  )}
-                >
-                  {bitacora.length} productos
-                </div>
+                
+                {/* Indicador de sesión actual */}
+                {sesionActual && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold",
+                        isDark
+                          ? "bg-blue-500/20 border border-blue-400/30 text-blue-200"
+                          : "bg-blue-100 border border-blue-300 text-blue-700"
+                      )}
+                    >
+                      <Package className="h-4 w-4" />
+                      Sesión: {sesionActual.nombre}
+                    </div>
+                    <div
+                      className={cn(
+                        "px-2 py-1 rounded-lg text-xs font-medium",
+                        isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                      )}
+                    >
+                      {bitacora.length} productos
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center gap-3">
-            {/* Control de importación */}
-            <label
-              className={cn(
-                "inline-flex items-center gap-3 text-sm px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 cursor-pointer",
-                isDark
-                  ? "bg-white/10 border-2 border-white/20 shadow-2xl shadow-indigo-950/30 hover:bg-white/15 hover:shadow-indigo-500/30"
-                  : "bg-white/90 border-2 border-slate-300 shadow-xl hover:bg-slate-50 hover:shadow-slate-400/40"
-              )}
-            >
-              <FileUp className="h-5 w-5" />
-              <span className="font-semibold">Importar CSV/XLSX</span>
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={onFile}
-                className="hidden"
-              />
-            </label>
-
-            {/* Exportar Excel */}
-            <Button
-              onClick={() => exportBitacora(bitacora)}
-              disabled={bitacora.length === 0}
-              className={cn(
-                "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
-                bitacora.length === 0
-                  ? "opacity-50 cursor-not-allowed"
-                  : isDark
-                  ? "bg-emerald-600/80 hover:bg-emerald-600 border-2 border-emerald-500 backdrop-blur-xl text-white shadow-2xl shadow-emerald-900/50"
-                  : "bg-emerald-600 hover:bg-emerald-700 border-2 border-emerald-500 text-white shadow-xl shadow-emerald-500/30"
-              )}
-            >
-              <FileDown className="h-5 w-5 mr-2" /> 
-              📊 Exportar Excel ({bitacora.length})
-            </Button>
-
-            {/* Finalizar Sesión */}
-            <Button
-              onClick={finalizarSesion}
-              disabled={!sesionActual || bitacora.length === 0}
-              className={cn(
-                "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
-                (!sesionActual || bitacora.length === 0)
-                  ? "opacity-50 cursor-not-allowed"
-                  : isDark
-                  ? "bg-purple-600/80 hover:bg-purple-600 border-2 border-purple-500 backdrop-blur-xl text-white shadow-2xl shadow-purple-900/50"
-                  : "bg-purple-600 hover:bg-purple-700 border-2 border-purple-500 text-white shadow-xl shadow-purple-500/30"
-              )}
-            >
-              <CheckCircle2 className="h-5 w-5 mr-2" /> 
-              Finalizar Sesión
-            </Button>
-
-            {/* Nueva Sesión */}
-            <Button
-              onClick={crearNuevaSesion}
-              className={cn(
-                "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
-                isDark
-                  ? "bg-orange-600/80 hover:bg-orange-600 border-2 border-orange-500 backdrop-blur-xl text-white shadow-2xl shadow-orange-900/50"
-                  : "bg-orange-600 hover:bg-orange-700 border-2 border-orange-500 text-white shadow-xl shadow-orange-500/30"
-              )}
-            >
-              <Package className="h-5 w-5 mr-2" /> 
-              Nueva Sesión
-            </Button>
-
-            {/* Cambiar tema */}
-            <Button
-              onClick={toggleTheme}
-              aria-pressed={isDark}
-              className="rounded-2xl text-white bg-gradient-to-r from-cyan-600 via-indigo-600 to-fuchsia-600 hover:from-cyan-500 hover:via-indigo-500 hover:to-fuchsia-500 shadow-2xl border-0 transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3"
-            >
-              {isDark ? (
-                <>
-                  <Sun className="h-5 w-5 mr-2" /> Claro
-                </>
-              ) : (
-                <>
-                  <Moon className="h-5 w-5 mr-2" /> Oscuro
-                </>
-              )}
-            </Button>
-          </div>
-        </header>
-        {/* ========================================
-            FILTERS SECTION
-        ======================================== */}
-        <Card className={cardClass}>
-          <CardHeader className="pb-3 sticky top-0 z-10 backdrop-blur-xl">
-            <CardTitle
-              className={cn(
-                "text-xl font-bold flex items-center gap-2",
-                isDark ? "text-slate-100" : "text-slate-800"
-              )}
-            >
-              <Search className="h-5 w-5" />
-              Buscar y filtrar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
-            <div className="relative md:col-span-6">
-              <Search
-                className={cn(
-                  "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5",
-                  isDark ? "text-slate-300" : "text-slate-500"
-                )}
-              />
-              <input
-                type="text"
-                placeholder="Buscar por producto, proveedor, marca/línea, código de barras o código ref"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                style={{ 
-                  ...hardInput, 
-                  textAlign: "left", 
-                  paddingLeft: "3rem",
-                  height: "3rem",
-                  fontSize: "1rem"
-                }}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <Select
-                value={proveedorFilter}
-                onValueChange={setProveedorFilter}
-              >
-                <SelectTrigger
+              <div className="flex items-center gap-3">
+                {/* Control de importación */}
+                <label
                   className={cn(
-                    "w-full rounded-2xl h-12 text-base font-medium",
+                    "inline-flex items-center gap-3 text-sm px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 cursor-pointer",
                     isDark
-                      ? "bg-white/10 border-2 border-white/20 text-slate-100"
-                      : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                      ? "bg-white/10 border-2 border-white/20 shadow-2xl shadow-indigo-950/30 hover:bg-white/15 hover:shadow-indigo-500/30"
+                      : "bg-white/90 border-2 border-slate-300 shadow-xl hover:bg-slate-50 hover:shadow-slate-400/40"
                   )}
                 >
-                  <SelectValue placeholder="Proveedor" />
-                </SelectTrigger>
-                <SelectContent
-                  className={
-                    isDark
-                      ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl"
-                      : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"
-                  }
-                >
-                  {proveedores.map((p) => (
-                    <SelectItem
-                      key={p}
-                      value={p}
-                      className={cn(
-                        "focus:bg-white/15 font-medium",
-                        !isDark && "focus:bg-slate-100"
-                      )}
-                    >
-                      {p === "todos" ? "Todos los proveedores" : p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  <FileUp className="h-5 w-5" />
+                  <span className="font-semibold">Importar CSV/XLSX</span>
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={onFile}
+                    className="hidden"
+                  />
+                </label>
 
-            <div className="md:col-span-3">
-              <Select value={lineaFilter} onValueChange={setLineaFilter}>
-                <SelectTrigger
+                {/* Exportar Excel */}
+                <Button
+                  onClick={() => exportBitacora(bitacora)}
+                  disabled={bitacora.length === 0}
                   className={cn(
-                    "w-full rounded-2xl h-12 text-base font-medium",
-                    isDark
-                      ? "bg-white/10 border-2 border-white/20 text-slate-100"
-                      : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    bitacora.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : isDark
+                      ? "bg-emerald-600/80 hover:bg-emerald-600 border-2 border-emerald-500 backdrop-blur-xl text-white shadow-2xl shadow-emerald-900/50"
+                      : "bg-emerald-600 hover:bg-emerald-700 border-2 border-emerald-500 text-white shadow-xl shadow-emerald-500/30"
                   )}
                 >
-                  <SelectValue placeholder="Marca/Línea" />
-                </SelectTrigger>
-                <SelectContent
-                  className={
-                    isDark
-                      ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl"
-                      : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"
-                  }
+                  <FileDown className="h-5 w-5 mr-2" /> 
+                  📊 Exportar Excel ({bitacora.length})
+                </Button>
+
+                {/* Finalizar Sesión */}
+                <Button
+                  onClick={finalizarSesion}
+                  disabled={!sesionActual || bitacora.length === 0}
+                  className={cn(
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    (!sesionActual || bitacora.length === 0)
+                      ? "opacity-50 cursor-not-allowed"
+                      : isDark
+                      ? "bg-purple-600/80 hover:bg-purple-600 border-2 border-purple-500 backdrop-blur-xl text-white shadow-2xl shadow-purple-900/50"
+                      : "bg-purple-600 hover:bg-purple-700 border-2 border-purple-500 text-white shadow-xl shadow-purple-500/30"
+                  )}
                 >
-                  {lineas.map((l) => (
-                    <SelectItem
-                      key={l}
-                      value={l}
-                      className={cn(
-                        "focus:bg-white/15 font-medium",
-                        !isDark && "focus:bg-slate-100"
-                      )}
-                    >
-                      {l === "todas" ? "Todas las marcas/líneas" : l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  <CheckCircle2 className="h-5 w-5 mr-2" /> 
+                  Finalizar Sesión
+                </Button>
 
-            {/* Toggle de Netos */}
-            <div className="md:col-span-12 flex flex-wrap gap-3 pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "rounded-xl px-4 py-2 font-semibold transition-all duration-300 hover:scale-105",
-                  showNetos 
-                    ? isDark 
-                      ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30" 
-                      : "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200"
-                    : isDark
-                      ? "bg-white/10 border-white/20 hover:bg-white/15"
-                      : "bg-white border-slate-300 hover:bg-slate-50"
-                )}
-                onClick={() => setShowNetos((v) => !v)}
-              >
-                <ListFilter className="h-4 w-4 mr-2" />
-                {showNetos ? "Ocultar Netos" : "Ver Netos"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Nueva Sesión */}
+                <Button
+                  onClick={crearNuevaSesion}
+                  className={cn(
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    isDark
+                      ? "bg-orange-600/80 hover:bg-orange-600 border-2 border-orange-500 backdrop-blur-xl text-white shadow-2xl shadow-orange-900/50"
+                      : "bg-orange-600 hover:bg-orange-700 border-2 border-orange-500 text-white shadow-xl shadow-orange-500/30"
+                  )}
+                >
+                  <Package className="h-5 w-5 mr-2" /> 
+                  Nueva Sesión
+                </Button>
+              </div>
+            </header>
 
-        {/* ========================================
-            PRODUCTS SECTION
-        ======================================== */}
-        <div className="space-y-6">
-          {filtrados.map((p) => {
-            const entered = costosIngresados[p.id] || {};
-            const upc =
-              isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
-                ? Number(p.unidades_por_caja)
-                : 1;
-
-            const baseC = isFinite(entered.caja)
-              ? Number(entered.caja)
-              : p.costo_caja ?? 0;
-            const baseU = upc > 0 ? baseC / upc : baseC;
-
-            const ov = overrides[p.id] || {};
-            const baseD1 = p.desc1_pct || 0;
-            const baseD2 = p.desc2_pct || 0;
-            const baseInc = p.incremento_pct || 0;
-            const d1 = ov.d1 ?? baseD1;
-            const d2 = ov.d2 ?? baseD2;
-            const inc = ov.inc ?? baseInc;
-            const isManual = ov.d1 != null || ov.d2 != null || ov.inc != null;
-
-            const netoC = aplicarDescuentosProveedor(baseC, d1, d2);
-            const finalC = netoC * (1 + inc);
-            const netoU = aplicarDescuentosProveedor(baseU, d1, d2);
-            const finalU = netoU * (1 + inc);
-
-            const caso = (p.caso_especial || "")
-              .toString()
-              .trim()
-              .toLowerCase();
-
-            return (
-              <Card key={p.id} className={cn(cardClass, "card-hover")}>
-                <CardContent className="p-5 md:p-6">
-                  {/* Cabecera del item */}
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="min-w-0">
-                      <div
-                        className="font-bold text-lg md:text-xl leading-tight line-clamp-2 mb-2"
-                        title={p.nombre}
-                      >
-                        <Package className="inline h-5 w-5 mr-2" />
-                        {p.nombre}
-                      </div>
-                      <div
-                        className={cn(
-                          "text-sm opacity-90 truncate max-w-full mb-2",
-                          isDark ? "text-slate-300" : "text-slate-600"
-                        )}
-                      >
-                        📊 EAN: {p.codigo_barras || "-"} · Ref: {p.cod_ref || "-"}
-                      </div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span
-                          className={cn(
-                            "inline-block truncate px-3 py-1.5 rounded-full text-sm font-semibold",
-                            isDark
-                              ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30 text-indigo-200"
-                              : "bg-gradient-to-r from-indigo-100 to-purple-100 border border-indigo-300 text-indigo-700"
-                          )}
-                          title={p.proveedor || "-"}
-                        >
-                          🏢 {p.proveedor || "-"}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-sm opacity-90 px-2 py-1 rounded-lg",
-                            isDark 
-                              ? "bg-white/10 text-slate-300" 
-                              : "bg-slate-100 text-slate-600"
-                          )}
-                        >
-                          🏷️ {p.linea || "-"}
-                        </span>
-                        {isManual && (
-                          <span
-                            className={cn(
-                              "text-sm px-3 py-1 rounded-full font-bold animate-pulse",
-                              isDark
-                                ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
-                                : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
-                            )}
-                          >
-                            ✏️ MANUAL
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Caso especial chip mejorado */}
-                    <div className="shrink-0">
-                      {(function (estado) {
-                        const base =
-                          "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-lg transition-all duration-300 hover:scale-105 ";
-                        if ((estado || "").toLowerCase() === "si")
-                          return (
-                            <span
-                              className={
-                                base +
-                                (isDark
-                                  ? "bg-gradient-to-r from-rose-500/30 to-red-500/30 text-rose-200 shadow-rose-900/50 border border-rose-400/50"
-                                  : "bg-gradient-to-r from-rose-200 to-red-200 text-rose-800 shadow-rose-300 border border-rose-400")
-                              }
-                            >
-                              <AlertCircle className="h-4 w-4" /> CASO ESPECIAL
-                            </span>
-                          );
-                        if ((estado || "").toLowerCase() === "consultar")
-                          return (
-                            <span
-                              className={
-                                base +
-                                (isDark
-                                  ? "bg-gradient-to-r from-amber-500/30 to-yellow-500/30 text-amber-200 shadow-amber-900/50 border border-amber-400/50"
-                                  : "bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800 shadow-amber-300 border border-amber-400")
-                              }
-                            >
-                              <Info className="h-4 w-4" /> CONSULTAR
-                            </span>
-                          );
-                        return (
-                          <span
-                            className={
-                              base +
-                              (isDark
-                                ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 shadow-emerald-900/50 border border-emerald-400/50"
-                                : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 shadow-emerald-300 border border-emerald-400")
-                            }
-                          >
-                            <CheckCircle2 className="h-4 w-4" /> OK
-                          </span>
-                        );
-                      })(caso)}
-                    </div>
-                  </div>
-
-                  {/* GRID de edición y resultados mejorado */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/*  de inputs mejorado */}
-                    <div className="lg:col-span-5 xl:col-span-4 space-y-4">
-                      {/* Costo Caja - MAS DESTACADO */}
-                      <div className={cn(
-                        "p-4 rounded-2xl border-2",
-                        isDark 
-                          ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-400/30"
-                          : "bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-300"
-                      )}>
-                        <div className="text-sm font-bold mb-2 flex items-center gap-2">
-                          💰 Costo por Caja
-                        </div>
-                        <div
-                          className="flex rounded-xl overflow-hidden border-2"
-                          style={{
-                            borderColor: isDark
-                              ? "rgba(99,102,241,0.4)"
-                              : "rgba(99,102,241,0.3)",
-                          }}
-                        >
-                          <span
-                            className={cn(
-                              "px-3 inline-flex items-center text-sm font-bold",
-                              isDark 
-                                ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-indigo-200" 
-                                : "bg-gradient-to-r from-indigo-200 to-purple-200 text-indigo-800"
-                            )}
-                          >
-                            Bs
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0.00"
-                            autoComplete="off"
-                            value={
-                              costosIngresados[p.id]?.caja === undefined ||
-                              costosIngresados[p.id]?.caja === null
-                                ? p.costo_caja ?? ""
-                                : String(costosIngresados[p.id]?.caja ?? "")
-                            }
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              // Permitir números con coma o punto decimal y espacios
-                              if (raw === "" || /^[\d\s.,]*$/.test(raw)) {
-                                setCostosIngresados((prev) => ({
-                                  ...prev,
-                                  [p.id]: {
-                                    caja: raw === "" ? undefined : raw,
-                                  },
-                                }));
-                              }
-                            }}
-                            onBlur={(e) => {
-                              // Convertir a número al perder el foco
-                              const raw = e.target.value;
-                              if (raw !== "") {
-                                const numValue = numBO(raw);
-                                if (numValue !== undefined) {
-                                  setCostosIngresados((prev) => ({
-                                    ...prev,
-                                    [p.id]: {
-                                      caja: numValue,
-                                    },
-                                  }));
-                                }
-                              }
-                            }}
-                            title="Costo por Caja - Acepta: 123.45, 123,45, 1.234,56"
-                            style={costInputStyle}
-                          />
-                        </div>
-                        <div
-                          className={cn(
-                            "text-sm mt-2 opacity-90 tabular-nums font-medium",
-                            isDark ? "text-emerald-300" : "text-emerald-600"
-                          )}
-                        >
-                          💊 Costo Unitario: Bs {nf.format(baseU)} (x{upc} unidades)
-                        </div>
-                      </div>
-
-                      {/* Descuentos e incremento */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <div className="text-sm font-semibold mb-2">📉 d1 %</div>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            pattern="[0-9.,%]*"
-                            autoComplete="off"
-                            value={pctDisplay(overrides[p.id]?.d1, p.desc1_pct, overrides[p.id]?.d1_temp)}
-                            onChange={(e) => {
-                              const dec = parsePercentInput(e.target.value);
-                              setOverrides((prev) => {
-                                const next = { ...(prev[p.id] || {}) };
-                                if (dec === undefined) delete next.d1;
-                                else if (dec !== null) next.d1 = dec;
-                                return { ...prev, [p.id]: next };
-                              });
-                            }}
-                            onBlur={(e) => {
-                              const dec = parsePercentInput(e.target.value);
-                              if (dec !== null && dec !== undefined) {
-                                // Mostrar como porcentaje en el display
-                                e.target.value = String(Math.round(dec * 100 * 100) / 100);
-                              }
-                            }}
-                            title="d1 (proveedor) %"
-                            style={hardInput}
-                          />
-                        </div>
-
-                        <div>
-                          <div className="text-sm font-semibold mb-2">📉 d2 %</div>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            pattern="[0-9.,%]*"
-                            autoComplete="off"
-                            value={pctDisplay(overrides[p.id]?.d2, p.desc2_pct)}
-                            onChange={(e) => {
-                              const dec = parsePercentInput(e.target.value);
-                              setOverrides((prev) => {
-                                const next = { ...(prev[p.id] || {}) };
-                                if (dec === undefined) delete next.d2;
-                                else if (dec !== null) next.d2 = dec;
-                                return { ...prev, [p.id]: next };
-                              });
-                            }}
-                            onBlur={(e) => {
-                              const dec = parsePercentInput(e.target.value);
-                              if (dec !== null && dec !== undefined) {
-                                // Mostrar como porcentaje en el display
-                                e.target.value = String(Math.round(dec * 100 * 100) / 100);
-                              }
-                            }}
-                            title="d2 (proveedor) %"
-                            style={hardInput}
-                          />
-                        </div>
-
-                        <div>
-                          <div className="text-sm font-semibold mb-2">📈 Inc. %</div>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="1000"
-                            placeholder="0"
-                            value={
-                              // Si está editando, usar valor local; si no, usar valor calculado
-                              editingInputs[`${p.id}_inc`] !== undefined
-                                ? editingInputs[`${p.id}_inc`]
-                                : overrides[p.id]?.inc !== undefined 
-                                  ? overrides[p.id].inc * 100
-                                  : p.incremento_pct 
-                                    ? p.incremento_pct * 100
-                                    : ''
-                            }
-                            onFocus={(e) => {
-                              // Al hacer foco, guardar valor actual en estado local
-                              const currentValue = overrides[p.id]?.inc !== undefined 
-                                ? overrides[p.id].inc * 100
-                                : p.incremento_pct 
-                                  ? p.incremento_pct * 100
-                                  : '';
-                              
-                              setEditingInputs(prev => ({
-                                ...prev,
-                                [`${p.id}_inc`]: currentValue
-                              }));
-                            }}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              // Actualizar solo el estado local mientras escribe
-                              setEditingInputs(prev => ({
-                                ...prev,
-                                [`${p.id}_inc`]: value
-                              }));
-                            }}
-                            onBlur={(e) => {
-                              const value = e.target.value;
-                              
-                              // Al perder foco, actualizar el estado principal y limpiar local
-                              if (value === '') {
-                                setOverrides((prev) => {
-                                  const next = { ...(prev[p.id] || {}) };
-                                  delete next.inc;
-                                  return { ...prev, [p.id]: next };
-                                });
-                              } else {
-                                const percent = parseFloat(value);
-                                if (!isNaN(percent)) {
-                                  setOverrides((prev) => ({
-                                    ...prev,
-                                    [p.id]: {
-                                      ...(prev[p.id] || {}),
-                                      inc: percent / 100
-                                    }
-                                  }));
-                                }
-                              }
-                              
-                              // Limpiar estado local
-                              setEditingInputs(prev => {
-                                const next = { ...prev };
-                                delete next[`${p.id}_inc`];
-                                return next;
-                              });
-                            }}
-                            title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
-                            style={hardInput}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bloque de resultados CAJA - MAS DESTACADO */}
-                    <div className={cn(
-                      "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
-                      isDark
-                        ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30"
-                        : "bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-300"
-                    )}>
-                      <div className="text-sm font-bold mb-3 flex items-center gap-2">
-                        📦 Precios por Caja
-                      </div>
-                      <div className="space-y-3">
-                        {showNetos && (
-                          <div>
-                            <div className="text-sm opacity-90 mb-1">Neto Caja</div>
-                            <div className={cn(priceNetClass, "drop-shadow-md")}>
-                              Bs {nf.format(netoC)}
-                            </div>
-                          </div>
-                        )}
-                        {/* AGREGAR: Costo Final Caja */}
-                        <div>
-                          <div className="text-sm opacity-90 mb-1">Costo Final Caja</div>
-                          <div className={cn(
-                            "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
-                            isDark ? "text-amber-300" : "text-amber-600"
-                          )}>
-                            Bs {nf.format(netoC)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
-                            <TrendingUp className="h-4 w-4" />
-                            Precio Final Caja
-                          </div>
-                          <div className={cn(priceFinalClass, "price-highlight")}>
-                            Bs {nf.format(finalC)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bloque de resultados UNIDAD - MAS DESTACADO */}
-                    <div className={cn(
-                      "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
-                      isDark
-                        ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-400/30"
-                        : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300"
-                    )}>
-                      <div className="text-sm font-bold mb-3 flex items-center gap-2">
-                        💊 Precios Unitarios
-                      </div>
-                      <div className="space-y-3">
-                        {showNetos && (
-                          <div>
-                            <div className="text-sm opacity-90 mb-1">Neto Unitario</div>
-                            <div className={cn(priceNetClass, "drop-shadow-md")}>
-                              Bs {nf.format(netoU)}
-                            </div>
-                          </div>
-                        )}
-                        {/* AGREGAR: Costo Final Unitario */}
-                        <div>
-                          <div className="text-sm opacity-90 mb-1">Costo Final Unitario</div>
-                          <div className={cn(
-                            "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
-                            isDark ? "text-amber-300" : "text-amber-600"
-                          )}>
-                            Bs {nf.format(netoU)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
-                            <TrendingUp className="h-4 w-4" />
-                            Precio Final Unitario
-                          </div>
-                          <div className={cn(priceFinalClass, "price-highlight")}>
-                            Bs {nf.format(finalU)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Acciones mejoradas */}
-                  <div className="mt-6 flex items-center gap-3 flex-wrap justify-center lg:justify-end">
-                    <Button
-                      size="lg"
-                      className="rounded-2xl text-white bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 shadow-2xl shadow-emerald-900/50 border-0 px-6 py-3 font-bold transition-all duration-300 hover:scale-105"
-                      onClick={() => validarYRegistrar(p)}
-                    >
-                      <CheckCircle2 className="h-5 w-5 mr-2" /> ✅ Validar y Registrar
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className={cn(
-                        "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
-                        isDark
-                          ? "bg-white/10 border-2 border-white/20 text-slate-100 hover:bg-white/15 shadow-lg"
-                          : "bg-white/90 border-2 border-slate-300 text-slate-800 hover:bg-slate-50 shadow-lg"
-                      )}
-                      onClick={() => copiarResumen(p)}
-                    >
-                      <ClipboardCopy className="h-5 w-5 mr-2" /> 📋 Copiar
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className={cn(
-                        "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
-                        isDark
-                          ? "bg-amber-500/10 border-2 border-amber-400/30 text-amber-200 hover:bg-amber-500/20 shadow-lg"
-                          : "bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 shadow-lg"
-                      )}
-                      disabled={!isManual}
-                      onClick={() => {
-                        setOverrides((prev) => {
-                          const n = { ...prev };
-                          delete n[p.id];
-                          return n;
-                        });
-                      }}
-                    >
-                      🔄 Restaurar
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {filtrados.length === 0 && (
+            {/* ========================================
+                FILTERS SECTION
+            ======================================== */}
             <Card className={cardClass}>
-              <CardContent
-                className={cn(
-                  "text-center py-12",
-                  isDark ? "text-slate-300" : "text-slate-600"
-                )}
-              >
-                <div className="text-6xl mb-4">🔍</div>
-                <div className="text-xl font-semibold mb-2">Sin resultados</div>
-                <div className="text-base">Ajusta tu búsqueda o carga tu archivo CSV/XLSX</div>
+              <CardHeader className="pb-3 sticky top-0 z-10 backdrop-blur-xl">
+                <CardTitle
+                  className={cn(
+                    "text-xl font-bold flex items-center gap-2",
+                    isDark ? "text-slate-100" : "text-slate-800"
+                  )}
+                >
+                  <Search className="h-5 w-5" />
+                  Buscar y filtrar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
+                <div className="relative md:col-span-6">
+                  <Search
+                    className={cn(
+                      "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5",
+                      isDark ? "text-slate-300" : "text-slate-500"
+                    )}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar por producto, proveedor, marca/línea, código de barras o código ref"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    style={{ 
+                      ...hardInput, 
+                      textAlign: "left", 
+                      paddingLeft: "3rem",
+                      height: "3rem",
+                      fontSize: "1rem"
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="md:col-span-3">
+                  <Select
+                    value={proveedorFilter}
+                    onValueChange={setProveedorFilter}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        "w-full rounded-2xl h-12 text-base font-medium",
+                        isDark
+                          ? "bg-white/10 border-2 border-white/20 text-slate-100"
+                          : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                      )}
+                    >
+                      <SelectValue placeholder="Proveedor" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl"
+                          : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"
+                      }
+                    >
+                      {proveedores.map((p) => (
+                        <SelectItem
+                          key={p}
+                          value={p}
+                          className={cn(
+                            "focus:bg-white/15 font-medium",
+                            !isDark && "focus:bg-slate-100"
+                          )}
+                        >
+                          {p === "todos" ? "Todos los proveedores" : p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="md:col-span-3">
+                  <Select value={lineaFilter} onValueChange={setLineaFilter}>
+                    <SelectTrigger
+                      className={cn(
+                        "w-full rounded-2xl h-12 text-base font-medium",
+                        isDark
+                          ? "bg-white/10 border-2 border-white/20 text-slate-100"
+                          : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                      )}
+                    >
+                      <SelectValue placeholder="Marca/Línea" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl"
+                          : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"
+                      }
+                    >
+                      {lineas.map((l) => (
+                        <SelectItem
+                          key={l}
+                          value={l}
+                          className={cn(
+                            "focus:bg-white/15 font-medium",
+                            !isDark && "focus:bg-slate-100"
+                          )}
+                        >
+                          {l === "todas" ? "Todas las marcas/líneas" : l}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Toggle de Netos */}
+                <div className="md:col-span-12 flex flex-wrap gap-3 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn(
+                      "rounded-xl px-4 py-2 font-semibold transition-all duration-300 hover:scale-105",
+                      showNetos 
+                        ? isDark 
+                          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30" 
+                          : "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200"
+                        : isDark
+                          ? "bg-white/10 border-white/20 hover:bg-white/15"
+                          : "bg-white border-slate-300 hover:bg-slate-50"
+                    )}
+                    onClick={() => setShowNetos((v) => !v)}
+                  >
+                    <ListFilter className="h-4 w-4 mr-2" />
+                    {showNetos ? "Ocultar Netos" : "Ver Netos"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          )}
-        </div>
-        {/* ========================================
-            TRANSACTION HISTORY SECTION
-        ======================================== */}
-         <Card className={cardClass}>
-          <CardHeader>
-            <CardTitle
-              className={cn(
-                "text-xl font-bold flex items-center gap-3",
-                isDark ? "text-slate-100" : "text-slate-800"
-              )}
-            >
-              📊 Historial de transacciones 
-              <span className={cn(
-                "px-3 py-1 rounded-full text-sm font-bold",
-                isDark 
-                  ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-200"
-                  : "bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700"
-              )}>
-                {bitacora.length} registros
-              </span>
-              {bitacora.length > 0 && (
-                <span className={cn(
-                  "text-xs px-2 py-1 rounded-lg",
-                  isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
-                )}>
-                  🔄 Arrastra para reordenar
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bitacora.length === 0 ? (
-              <div
-                className={cn(
-                  "text-center py-12",
-                  isDark ? "text-slate-300" : "text-slate-600"
-                )}
-              >
-                <div className="text-6xl mb-4">📝</div>
-                <div className="text-xl font-semibold mb-2">Historial vacío</div>
-                <div className="text-base">
-                  Ingresa costos por caja y valida productos para comenzar a registrar transacciones.
-                </div>
-              </div>
-            ) : (
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="historial">
-                  {(provided, snapshot) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className={cn(
-                        "space-y-4 transition-colors duration-200",
-                        snapshot.isDraggingOver && (isDark ? "bg-white/5" : "bg-slate-50")
-                      )}
-                    >
-                      {bitacora.map((r, index) => (
-                        <Draggable 
-                          key={r.id || `item-${index}`} 
-                          draggableId={String(r.id || `item-${index}`)} 
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
+
+            {/* ========================================
+                PRODUCTS SECTION
+            ======================================== */}
+            <div className="space-y-6">
+              {filtrados.map((p) => {
+                const entered = costosIngresados[p.id] || {};
+                const upc =
+                  isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0
+                    ? Number(p.unidades_por_caja)
+                    : 1;
+
+                const baseC = isFinite(entered.caja)
+                  ? Number(entered.caja)
+                  : p.costo_caja ?? 0;
+                const baseU = upc > 0 ? baseC / upc : baseC;
+
+                const ov = overrides[p.id] || {};
+                const baseD1 = p.desc1_pct || 0;
+                const baseD2 = p.desc2_pct || 0;
+                const baseInc = p.incremento_pct || 0;
+                const d1 = ov.d1 ?? baseD1;
+                const d2 = ov.d2 ?? baseD2;
+                const inc = ov.inc ?? baseInc;
+                const isManual = ov.d1 != null || ov.d2 != null || ov.inc != null;
+
+                const netoC = aplicarDescuentosProveedor(baseC, d1, d2);
+                const finalC = netoC * (1 + inc);
+                const netoU = aplicarDescuentosProveedor(baseU, d1, d2);
+                const finalU = netoU * (1 + inc);
+
+                const caso = (p.caso_especial || "")
+                  .toString()
+                  .trim()
+                  .toLowerCase();
+
+                return (
+                  <Card key={p.id} className={cn(cardClass, "card-hover")}>
+                    <CardContent className="p-5 md:p-6">
+                      {/* Cabecera del item */}
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="min-w-0">
+                          <div
+                            className="font-bold text-lg md:text-xl leading-tight line-clamp-2 mb-2"
+                            title={p.nombre}
+                          >
+                            <Package className="inline h-5 w-5 mr-2" />
+                            {p.nombre}
+                          </div>
+                          <div
+                            className={cn(
+                              "text-sm opacity-90 truncate max-w-full mb-2",
+                              isDark ? "text-slate-300" : "text-slate-600"
+                            )}
+                          >
+                            📊 EAN: {p.codigo_barras || "-"} · Ref: {p.cod_ref || "-"}
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span
                               className={cn(
-                                "p-4 rounded-2xl border-2 flex flex-col gap-3 transition-all duration-300 relative",
-                                snapshot.isDragging 
-                                  ? isDark
-                                    ? "bg-gradient-to-br from-white/20 to-white/10 border-white/40 shadow-2xl scale-105 rotate-1"
-                                    : "bg-gradient-to-br from-white to-slate-50 border-slate-400 shadow-2xl scale-105 rotate-1"
-                                  : isDark
-                                    ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20 hover:scale-[1.02] hover:shadow-lg"
-                                    : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300 hover:scale-[1.02] hover:shadow-lg"
+                                "inline-block truncate px-3 py-1.5 rounded-full text-sm font-semibold",
+                                isDark
+                                  ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30 text-indigo-200"
+                                  : "bg-gradient-to-r from-indigo-100 to-purple-100 border border-indigo-300 text-indigo-700"
+                              )}
+                              title={p.proveedor || "-"}
+                            >
+                              🏢 {p.proveedor || "-"}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-sm opacity-90 px-2 py-1 rounded-lg",
+                                isDark 
+                                  ? "bg-white/10 text-slate-300" 
+                                  : "bg-slate-100 text-slate-600"
                               )}
                             >
-                              {/* Handle de arrastre y botón eliminar */}
-                              <div className="absolute top-3 right-3 flex items-center gap-2">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className={cn(
-                                    "h-8 w-8 rounded-lg flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-200",
-                                    isDark 
-                                      ? "bg-white/10 hover:bg-white/20 text-slate-300 hover:text-slate-100" 
-                                      : "bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700"
-                                  )}
-                                  title="Arrastra para reordenar"
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                    <circle cx="4" cy="4" r="1.5"/>
-                                    <circle cx="12" cy="4" r="1.5"/>
-                                    <circle cx="4" cy="8" r="1.5"/>
-                                    <circle cx="12" cy="8" r="1.5"/>
-                                    <circle cx="4" cy="12" r="1.5"/>
-                                    <circle cx="12" cy="12" r="1.5"/>
-                                  </svg>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className={cn(
-                                    "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100 text-red-500 hover:text-red-400",
-                                    isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"
-                                  )}
-                                  onClick={() => eliminarRegistro(index)}
-                                  title="Eliminar registro"
-                                >
-                                  🗑️
-                                </Button>
-                              </div>
+                              🏷️ {p.linea || "-"}
+                            </span>
+                            {isManual && (
+                              <span
+                                className={cn(
+                                  "text-sm px-3 py-1 rounded-full font-bold animate-pulse",
+                                  isDark
+                                    ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
+                                    : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
+                                )}
+                              >
+                                ✏️ MANUAL
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                              <div className="flex items-start justify-between gap-4 pr-20">
-                                <div className="min-w-0">
-                                  <div className="font-bold text-lg mb-1 flex items-center gap-2">
-                                    📦 {r.producto}
-                                  </div>
-                                  <div
-                                    className={cn(
-                                      "text-sm opacity-90 mb-2",
-                                      isDark ? "text-slate-300" : "text-slate-600"
-                                    )}
-                                  >
-                                    🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 
-                                    📊 EAN: {r.codigo_barras || "-"} · Ref: {r.cod_ref || "-"}
-                                  </div>
-                                  <div className="flex items-center gap-4 text-sm">
-                                    <span
-                                      className={cn(
-                                        "px-2 py-1 rounded-lg font-medium",
-                                        isDark ? "bg-white/10" : "bg-slate-100"
-                                      )}
-                                    >
-                                      📅 {new Date(r.fecha).toLocaleString()}
-                                    </span>
-                                    <span
-                                      className={cn(
-                                        "px-3 py-1 rounded-full font-bold text-sm",
-                                        (r.estado || "").toLowerCase() === "validado"
-                                          ? isDark
-                                            ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
-                                            : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
-                                          : isDark
-                                          ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
-                                          : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
-                                      )}
-                                    >
-                                      {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
-                                    </span>
-                                    <span
-                                      className={cn(
-                                        "text-xs px-2 py-1 rounded-lg font-medium",
-                                        isDark ? "bg-indigo-500/20 text-indigo-200" : "bg-indigo-100 text-indigo-700"
-                                      )}
-                                    >
-                                      #{index + 1}
-                                    </span>
-                                  </div>
+                        {/* Caso especial chip mejorado */}
+                        <div className="shrink-0">
+                          {(function (estado) {
+                            const base =
+                              "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-lg transition-all duration-300 hover:scale-105 ";
+                            if ((estado || "").toLowerCase() === "si")
+                              return (
+                                <span
+                                  className={
+                                    base +
+                                    (isDark
+                                      ? "bg-gradient-to-r from-rose-500/30 to-red-500/30 text-rose-200 shadow-rose-900/50 border border-rose-400/50"
+                                      : "bg-gradient-to-r from-rose-200 to-red-200 text-rose-800 shadow-rose-300 border border-rose-400")
+                                  }
+                                >
+                                  <AlertCircle className="h-4 w-4" /> CASO ESPECIAL
+                                </span>
+                              );
+                            if ((estado || "").toLowerCase() === "consultar")
+                              return (
+                                <span
+                                  className={
+                                    base +
+                                    (isDark
+                                      ? "bg-gradient-to-r from-amber-500/30 to-yellow-500/30 text-amber-200 shadow-amber-900/50 border border-amber-400/50"
+                                      : "bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800 shadow-amber-300 border border-amber-400")
+                                  }
+                                >
+                                  <Info className="h-4 w-4" /> CONSULTAR
+                                </span>
+                              );
+                            return (
+                              <span
+                                className={
+                                  base +
+                                  (isDark
+                                    ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 shadow-emerald-900/50 border border-emerald-400/50"
+                                    : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 shadow-emerald-300 border border-emerald-400")
+                                }
+                              >
+                                <CheckCircle2 className="h-4 w-4" /> OK
+                              </span>
+                            );
+                          })(caso)}
+                        </div>
+                      </div>
+
+                      {/* GRID de edición y resultados mejorado */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* Bloque de inputs mejorado */}
+                        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+                          {/* Costo Caja - MAS DESTACADO */}
+                          <div className={cn(
+                            "p-4 rounded-2xl border-2",
+                            isDark 
+                              ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-400/30"
+                              : "bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-300"
+                          )}>
+                            <div className="text-sm font-bold mb-2 flex items-center gap-2">
+                              💰 Costo por Caja
+                            </div>
+                            <div
+                              className="flex rounded-xl overflow-hidden border-2"
+                              style={{
+                                borderColor: isDark
+                                  ? "rgba(99,102,241,0.4)"
+                                  : "rgba(99,102,241,0.3)",
+                              }}
+                            >
+                              <span
+                                className={cn(
+                                  "px-3 inline-flex items-center text-sm font-bold",
+                                  isDark 
+                                    ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-indigo-200" 
+                                    : "bg-gradient-to-r from-indigo-200 to-purple-200 text-indigo-800"
+                                )}
+                              >
+                                Bs
+                              </span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                autoComplete="off"
+                                value={
+                                  costosIngresados[p.id]?.caja === undefined ||
+                                  costosIngresados[p.id]?.caja === null
+                                    ? p.costo_caja ?? ""
+                                    : String(costosIngresados[p.id]?.caja ?? "")
+                                }
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  // Permitir números con coma o punto decimal y espacios
+                                  if (raw === "" || /^[\d\s.,]*$/.test(raw)) {
+                                    setCostosIngresados((prev) => ({
+                                      ...prev,
+                                      [p.id]: {
+                                        caja: raw === "" ? undefined : raw,
+                                      },
+                                    }));
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  // Convertir a número al perder el foco
+                                  const raw = e.target.value;
+                                  if (raw !== "") {
+                                    const numValue = numBO(raw);
+                                    if (numValue !== undefined) {
+                                      setCostosIngresados((prev) => ({
+                                        ...prev,
+                                        [p.id]: {
+                                          caja: numValue,
+                                        },
+                                      }));
+                                    }
+                                  }
+                                }}
+                                title="Costo por Caja - Acepta: 123.45, 123,45, 1.234,56"
+                                style={costInputStyle}
+                              />
+                            </div>
+                            <div
+                              className={cn(
+                                "text-sm mt-2 opacity-90 tabular-nums font-medium",
+                                isDark ? "text-emerald-300" : "text-emerald-600"
+                              )}
+                            >
+                              💊 Costo Unitario: Bs {nf.format(baseU)} (x{upc} unidades)
+                            </div>
+                          </div>
+
+                          {/* Descuentos e incremento */}
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <div className="text-sm font-semibold mb-2">📉 d1 %</div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9.,%]*"
+                                autoComplete="off"
+                                value={pctDisplay(overrides[p.id]?.d1, p.desc1_pct, overrides[p.id]?.d1_temp)}
+                                onChange={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  setOverrides((prev) => {
+                                    const next = { ...(prev[p.id] || {}) };
+                                    if (dec === undefined) delete next.d1;
+                                    else if (dec !== null) next.d1 = dec;
+                                    return { ...prev, [p.id]: next };
+                                  });
+                                }}
+                                onBlur={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  if (dec !== null && dec !== undefined) {
+                                    // Mostrar como porcentaje en el display
+                                    e.target.value = String(Math.round(dec * 100 * 100) / 100);
+                                  }
+                                }}
+                                title="d1 (proveedor) %"
+                                style={hardInput}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="text-sm font-semibold mb-2">📉 d2 %</div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9.,%]*"
+                                autoComplete="off"
+                                value={pctDisplay(overrides[p.id]?.d2, p.desc2_pct)}
+                                onChange={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  setOverrides((prev) => {
+                                    const next = { ...(prev[p.id] || {}) };
+                                    if (dec === undefined) delete next.d2;
+                                    else if (dec !== null) next.d2 = dec;
+                                    return { ...prev, [p.id]: next };
+                                  });
+                                }}
+                                onBlur={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  if (dec !== null && dec !== undefined) {
+                                    // Mostrar como porcentaje en el display
+                                    e.target.value = String(Math.round(dec * 100 * 100) / 100);
+                                  }
+                                }}
+                                title="d2 (proveedor) %"
+                                style={hardInput}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="text-sm font-semibold mb-2">📈 Inc. %</div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1000"
+                                placeholder="0"
+                                value={
+                                  // Si está editando, usar valor local; si no, usar valor calculado
+                                  editingInputs[`${p.id}_inc`] !== undefined
+                                    ? editingInputs[`${p.id}_inc`]
+                                    : overrides[p.id]?.inc !== undefined 
+                                      ? overrides[p.id].inc * 100
+                                      : p.incremento_pct 
+                                        ? p.incremento_pct * 100
+                                        : ''
+                                }
+                                onFocus={(e) => {
+                                  // Al hacer foco, guardar valor actual en estado local
+                                  const currentValue = overrides[p.id]?.inc !== undefined 
+                                    ? overrides[p.id].inc * 100
+                                    : p.incremento_pct 
+                                      ? p.incremento_pct * 100
+                                      : '';
+                                  
+                                  setEditingInputs(prev => ({
+                                    ...prev,
+                                    [`${p.id}_inc`]: currentValue
+                                  }));
+                                }}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  // Actualizar solo el estado local mientras escribe
+                                  setEditingInputs(prev => ({
+                                    ...prev,
+                                    [`${p.id}_inc`]: value
+                                  }));
+                                }}
+                                onBlur={(e) => {
+                                  const value = e.target.value;
+                                  
+                                  // Al perder foco, actualizar el estado principal y limpiar local
+                                  if (value === '') {
+                                    setOverrides((prev) => {
+                                      const next = { ...(prev[p.id] || {}) };
+                                      delete next.inc;
+                                      return { ...prev, [p.id]: next };
+                                    });
+                                  } else {
+                                    const percent = parseFloat(value);
+                                    if (!isNaN(percent)) {
+                                      setOverrides((prev) => ({
+                                        ...prev,
+                                        [p.id]: {
+                                          ...(prev[p.id] || {}),
+                                          inc: percent / 100
+                                        }
+                                      }));
+                                    }
+                                  }
+                                  
+                                  // Limpiar estado local
+                                  setEditingInputs(prev => {
+                                    const next = { ...prev };
+                                    delete next[`${p.id}_inc`];
+                                    return next;
+                                  });
+                                }}
+                                title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
+                                style={hardInput}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bloque de resultados CAJA - MAS DESTACADO */}
+                        <div className={cn(
+                          "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
+                          isDark
+                            ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30"
+                            : "bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-300"
+                        )}>
+                          <div className="text-sm font-bold mb-3 flex items-center gap-2">
+                            📦 Precios por Caja
+                          </div>
+                          <div className="space-y-3">
+                            {showNetos && (
+                              <div>
+                                <div className="text-sm opacity-90 mb-1">Neto Caja</div>
+                                <div className={cn(priceNetClass, "drop-shadow-md")}>
+                                  Bs {nf.format(netoC)}
                                 </div>
                               </div>
-                              
-                              <div className="text-right">
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                  <div className={cn(
-                                    "px-3 py-2 rounded-xl",
-                                    isDark ? "bg-blue-500/20 border border-blue-400/30" : "bg-blue-50 border border-blue-200"
-                                  )}>
-                                    <div className="text-xs opacity-80 mb-1">💰 Costo</div>
-                                    <div className="font-bold tabular-nums text-lg">
-                                      Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className={cn(
-                                    "px-3 py-2 rounded-xl",
-                                    isDark ? "bg-amber-500/20 border border-amber-400/30" : "bg-amber-50 border border-amber-200"
-                                  )}>
-                                    <div className="text-xs opacity-80 mb-1">🧮 Costo Final</div>
-                                    <div className="font-bold tabular-nums text-lg">
-                                      Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className={cn(
-                                    "px-3 py-2 rounded-xl",
-                                    isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
-                                  )}>
-                                    <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
-                                      <TrendingUp className="h-3 w-3" />
-                                      Precio Final
-                                    </div>
-                                    <div className="font-bold tabular-nums text-xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
-                                      Bs {nf.format(
-                                        r.precio ??
-                                          r["precio final"] ??
-                                          r.precio_final_caja ??
-                                          0
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Precio Unitario Final */}
-                                  <div className={cn(
-                                    "px-3 py-2 rounded-xl",
-                                    isDark ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30" : "bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200"
-                                  )}>
-                                    <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
-                                      💊 Precio Unit.
-                                    </div>
-                                    <div className="font-bold tabular-nums text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
-                                      Bs {nf.format(r.precio_final_unidad ?? 0)}
-                                    </div>
-                                  </div>
-                                </div>
+                            )}
+                            {/* Costo Final Caja */}
+                            <div>
+                              <div className="text-sm opacity-90 mb-1">Costo Final Caja</div>
+                              <div className={cn(
+                                "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
+                                isDark ? "text-amber-300" : "text-amber-600"
+                              )}>
+                                Bs {nf.format(netoC)}
                               </div>
                             </div>
+                            <div>
+                              <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
+                                <TrendingUp className="h-4 w-4" />
+                                Precio Final Caja
+                              </div>
+                              <div className={cn(priceFinalClass, "price-highlight")}>
+                                Bs {nf.format(finalC)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bloque de resultados UNIDAD - MAS DESTACADO */}
+                        <div className={cn(
+                          "lg:col-span-3 xl:col-span-4 p-4 rounded-2xl border-2",
+                          isDark
+                            ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-400/30"
+                            : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300"
+                        )}>
+                          <div className="text-sm font-bold mb-3 flex items-center gap-2">
+                            💊 Precios Unitarios
+                          </div>
+                          <div className="space-y-3">
+                            {showNetos && (
+                              <div>
+                                <div className="text-sm opacity-90 mb-1">Neto Unitario</div>
+                                <div className={cn(priceNetClass, "drop-shadow-md")}>
+                                  Bs {nf.format(netoU)}
+                                </div>
+                              </div>
+                            )}
+                            {/* Costo Final Unitario */}
+                            <div>
+                              <div className="text-sm opacity-90 mb-1">Costo Final Unitario</div>
+                              <div className={cn(
+                                "font-semibold tabular-nums text-lg md:text-xl tracking-tight",
+                                isDark ? "text-amber-300" : "text-amber-600"
+                              )}>
+                                Bs {nf.format(netoU)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-sm opacity-90 mb-1 flex items-center gap-1">
+                                <TrendingUp className="h-4 w-4" />
+                                Precio Final Unitario
+                              </div>
+                              <div className={cn(priceFinalClass, "price-highlight")}>
+                                Bs {nf.format(finalU)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Acciones mejoradas */}
+                      <div className="mt-6 flex items-center gap-3 flex-wrap justify-center lg:justify-end">
+                        <Button
+                          size="lg"
+                          className="rounded-2xl text-white bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 shadow-2xl shadow-emerald-900/50 border-0 px-6 py-3 font-bold transition-all duration-300 hover:scale-105"
+                          onClick={() => validarYRegistrar(p)}
+                        >
+                          <CheckCircle2 className="h-5 w-5 mr-2" /> ✅ Validar y Registrar
+                        </Button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className={cn(
+                            "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
+                            isDark
+                              ? "bg-white/10 border-2 border-white/20 text-slate-100 hover:bg-white/15 shadow-lg"
+                              : "bg-white/90 border-2 border-slate-300 text-slate-800 hover:bg-slate-50 shadow-lg"
                           )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
+                          onClick={() => copiarResumen(p)}
+                        >
+                          <ClipboardCopy className="h-5 w-5 mr-2" /> 📋 Copiar
+                        </Button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className={cn(
+                            "rounded-2xl px-6 py-3 font-semibold transition-all duration-300 hover:scale-105",
+                            isDark
+                              ? "bg-amber-500/10 border-2 border-amber-400/30 text-amber-200 hover:bg-amber-500/20 shadow-lg"
+                              : "bg-amber-50 border-2 border-amber-300 text-amber-700 hover:bg-amber-100 shadow-lg"
+                          )}
+                          disabled={!isManual}
+                          onClick={() => {
+                            setOverrides((prev) => {
+                              const n = { ...prev };
+                              delete n[p.id];
+                              return n;
+                            });
+                          }}
+                        >
+                          🔄 Restaurar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {filtrados.length === 0 && (
+                <Card className={cardClass}>
+                  <CardContent
+                    className={cn(
+                      "text-center py-12",
+                      isDark ? "text-slate-300" : "text-slate-600"
+                    )}
+                  >
+                    <div className="text-6xl mb-4">🔍</div>
+                    <div className="text-xl font-semibold mb-2">Sin resultados</div>
+                    <div className="text-base">Ajusta tu búsqueda o carga tu archivo CSV/XLSX</div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* ========================================
+                TRANSACTION HISTORY SECTION
+            ======================================== */}
+            <Card className={cardClass}>
+              <CardHeader>
+                <CardTitle
+                  className={cn(
+                    "text-xl font-bold flex items-center gap-3",
+                    isDark ? "text-slate-100" : "text-slate-800"
                   )}
-                </Droppable>
-              </DragDropContext>
-            )}
-          </CardContent>
-        </Card>
-        {/* ========================================
-            FOOTER SECTION
-        ======================================== */}
- <footer
-          className={cn(
-            "text-center py-8 space-y-2",
-            isDark ? "text-slate-300" : "text-slate-600"
-          )}
-        >
-          <div className="text-2xl">💊</div>
-          <div className="text-sm font-semibold">
-            FarmaClinic · Módulo de Márgenes · {new Date().getFullYear()}
+                >
+                  📊 Historial de transacciones 
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-sm font-bold",
+                    isDark 
+                      ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-200"
+                      : "bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700"
+                  )}>
+                    {bitacora.length} registros
+                  </span>
+                  {bitacora.length > 0 && (
+                    <span className={cn(
+                      "text-xs px-2 py-1 rounded-lg",
+                      isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                    )}>
+                      🔄 Arrastra para reordenar
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {bitacora.length === 0 ? (
+                  <div
+                    className={cn(
+                      "text-center py-12",
+                      isDark ? "text-slate-300" : "text-slate-600"
+                    )}
+                  >
+                    <div className="text-6xl mb-4">📝</div>
+                    <div className="text-xl font-semibold mb-2">Historial vacío</div>
+                    <div className="text-base">
+                      Ingresa costos por caja y valida productos para comenzar a registrar transacciones.
+                    </div>
+                  </div>
+                ) : (
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="historial">
+                      {(provided, snapshot) => (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className={cn(
+                            "space-y-4 transition-colors duration-200",
+                            snapshot.isDraggingOver && (isDark ? "bg-white/5" : "bg-slate-50")
+                          )}
+                        >
+                          {bitacora.map((r, index) => (
+                            <Draggable 
+                              key={r.id || `item-${index}`} 
+                              draggableId={String(r.id || `item-${index}`)} 
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className={cn(
+                                    "p-4 rounded-2xl border-2 flex flex-col gap-3 transition-all duration-300 relative",
+                                    snapshot.isDragging 
+                                      ? isDark
+                                        ? "bg-gradient-to-br from-white/20 to-white/10 border-white/40 shadow-2xl scale-105 rotate-1"
+                                        : "bg-gradient-to-br from-white to-slate-50 border-slate-400 shadow-2xl scale-105 rotate-1"
+                                      : isDark
+                                        ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20 hover:scale-[1.02] hover:shadow-lg"
+                                        : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300 hover:scale-[1.02] hover:shadow-lg"
+                                  )}
+                                >
+                                  {/* Handle de arrastre y botón eliminar */}
+                                  <div className="absolute top-3 right-3 flex items-center gap-2">
+                                    <div
+                                      {...provided.dragHandleProps}
+                                      className={cn(
+                                        "h-8 w-8 rounded-lg flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-200",
+                                        isDark 
+                                          ? "bg-white/10 hover:bg-white/20 text-slate-300 hover:text-slate-100" 
+                                          : "bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700"
+                                      )}
+                                      title="Arrastra para reordenar"
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <circle cx="4" cy="4" r="1.5"/>
+                                        <circle cx="12" cy="4" r="1.5"/>
+                                        <circle cx="4" cy="8" r="1.5"/>
+                                        <circle cx="12" cy="8" r="1.5"/>
+                                        <circle cx="4" cy="12" r="1.5"/>
+                                        <circle cx="12" cy="12" r="1.5"/>
+                                      </svg>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className={cn(
+                                        "h-8 w-8 p-0 rounded-lg opacity-70 hover:opacity-100 text-red-500 hover:text-red-400",
+                                        isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"
+                                      )}
+                                      onClick={() => eliminarRegistro(index)}
+                                      title="Eliminar registro"
+                                    >
+                                      🗑️
+                                    </Button>
+                                  </div>
+
+                                  <div className="flex items-start justify-between gap-4 pr-20">
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-lg mb-1 flex items-center gap-2">
+                                        📦 {r.producto}
+                                      </div>
+                                      <div
+                                        className={cn(
+                                          "text-sm opacity-90 mb-2",
+                                          isDark ? "text-slate-300" : "text-slate-600"
+                                        )}
+                                      >
+                                        🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 
+                                        📊 EAN: {r.codigo_barras || "-"} · Ref: {r.cod_ref || "-"}
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm">
+                                        <span
+                                          className={cn(
+                                            "px-2 py-1 rounded-lg font-medium",
+                                            isDark ? "bg-white/10" : "bg-slate-100"
+                                          )}
+                                        >
+                                          📅 {new Date(r.fecha).toLocaleString()}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            "px-3 py-1 rounded-full font-bold text-sm",
+                                            (r.estado || "").toLowerCase() === "validado"
+                                              ? isDark
+                                                ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 border border-emerald-400/50"
+                                                : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 border border-emerald-400"
+                                              : isDark
+                                              ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
+                                              : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
+                                          )}
+                                        >
+                                          {(r.estado || "pendiente").toUpperCase() === "VALIDADO" ? "✅ VALIDADO" : "⏳ PENDIENTE"}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            "text-xs px-2 py-1 rounded-lg font-medium",
+                                            isDark ? "bg-indigo-500/20 text-indigo-200" : "bg-indigo-100 text-indigo-700"
+                                          )}
+                                        >
+                                          #{index + 1}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-right">
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                      <div className={cn(
+                                        "px-3 py-2 rounded-xl",
+                                        isDark ? "bg-blue-500/20 border border-blue-400/30" : "bg-blue-50 border border-blue-200"
+                                      )}>
+                                        <div className="text-xs opacity-80 mb-1">💰 Costo</div>
+                                        <div className="font-bold tabular-nums text-lg">
+                                          Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className={cn(
+                                        "px-3 py-2 rounded-xl",
+                                        isDark ? "bg-amber-500/20 border border-amber-400/30" : "bg-amber-50 border border-amber-200"
+                                      )}>
+                                        <div className="text-xs opacity-80 mb-1">🧮 Costo Final</div>
+                                        <div className="font-bold tabular-nums text-lg">
+                                          Bs {nf.format(r["costo final"] ?? r.costo_neto_caja ?? 0)}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className={cn(
+                                        "px-3 py-2 rounded-xl",
+                                        isDark ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30" : "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200"
+                                      )}>
+                                        <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
+                                          <TrendingUp className="h-3 w-3" />
+                                          Precio Final
+                                        </div>
+                                        <div className="font-bold tabular-nums text-xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                                          Bs {nf.format(
+                                            r.precio ??
+                                              r["precio final"] ??
+                                              r.precio_final_caja ??
+                                              0
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Precio Unitario Final */}
+                                      <div className={cn(
+                                        "px-3 py-2 rounded-xl",
+                                        isDark ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30" : "bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200"
+                                      )}>
+                                        <div className="text-xs opacity-80 mb-1 flex items-center gap-1">
+                                          💊 Precio Unit.
+                                        </div>
+                                        <div className="font-bold tabular-nums text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
+                                          Bs {nf.format(r.precio_final_unidad ?? 0)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ========================================
+                FOOTER SECTION
+            ======================================== */}
+            <footer
+              className={cn(
+                "text-center py-8 space-y-2",
+                isDark ? "text-slate-300" : "text-slate-600"
+              )}
+            >
+              <div className="text-2xl">💊</div>
+              <div className="text-sm font-semibold">
+                FarmaClinic · Módulo de Márgenes · {new Date().getFullYear()}
+              </div>
+              <div className="text-xs opacity-75">
+                Sistema Profesional de Gestión de Precios Farmacéuticos
+              </div>
+            </footer>
           </div>
-          <div className="text-xs opacity-75">
-            Sistema Profesional de Gestión de Precios Farmacéuticos
+        )}
+
+        {vistaActiva === "revision" && (
+          <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
+            <header>
+              <h1
+                className={cn(
+                  "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
+                  isDark
+                    ? "bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300"
+                    : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
+                )}
+              >
+                ⚖️ Módulo de Revisión
+              </h1>
+              <p
+                className={cn(
+                  "mt-2 text-lg font-medium",
+                  isDark ? "text-slate-300/90" : "text-slate-600"
+                )}
+              >
+                Comparación de precios y toma de decisiones
+              </p>
+            </header>
+            
+            <Card className={cardClass}>
+              <CardContent className="text-center py-12">
+                <div className="text-6xl mb-4">🔄</div>
+                <div className="text-xl font-semibold mb-2">Módulo en construcción</div>
+                <div className="text-base">Aquí se implementará la comparación de precios</div>
+              </CardContent>
+            </Card>
           </div>
-        </footer>
+        )}
       </div>
     </div>
   );
-}
