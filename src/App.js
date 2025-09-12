@@ -748,26 +748,11 @@ function validarYRegistrar(p) {
     const finalC = netoC * (1 + inc);
 
     const row = {
-      producto: p.nombre,
-      proveedor: p.proveedor,
-      linea: p.linea || "",
-      codigo_barras: p.codigo_barras || "",
-      cod_ref: p.cod_ref || "",
-      unidades_por_caja: upc,
-      costo_caja: baseC,
-      desc1_pct: d1,
-      desc2_pct: d2,
-      incremento_pct: inc,
-      costo_final_caja: netoC,
-      precio_final_caja: finalC,
-      precio_final_unitario: finalU,
-      parametros_manual: isManual,
-      estado: "pendiente_revision",
-      usuario: "facturador",
-      sector: "facturacion"
-    };
+  producto: "Medicamento de prueba",
+  precio_final_unitario: 15.50
+};
 
-    try {
+try {
       // Guardar en Supabase
       const { data, error } = await supabase
         .from('historial_calculos')
