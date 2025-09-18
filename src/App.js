@@ -996,8 +996,14 @@ async function finalizarSesion() {
       return;
     }
 
+    // ---- 1) SAFETY: obtener nombre de producto de forma tolerante ----
+    const nombreProducto =
+      (p?.producto ?? p?.descripcion ?? p?.nombre ?? p?.descripcion_producto ?? p?.producto_nombre ?? p?.nombre_producto ?? p?.titulo ?? "").toString().trim() ||
+      "SIN_NOMBRE"; // fallback para cumplir NOT NULL
+
+    // ---- 2) Leer entradas del usuario ----
     const entered = costosIngresados[p.id] || {};
-    const upc = isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0 ? Number(p.unidades_por_caja) : 1;
+    const upc = Number.isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0 ? Number(p.unidades_por_caja) : 1;
 
     // Validaciones ligeras
     if (entered.cantidad_cajas !== undefined && entered.cantidad_cajas !== "" && Number(entered.cantidad_cajas) < 0) {
@@ -1016,55 +1022,68 @@ async function finalizarSesion() {
       }
     }
 
+    // ---- 3) Normalizaciones: "" -> null, numéricos seguros ----
     const cajas = (entered.cantidad_cajas === "" || entered.cantidad_cajas === undefined)
       ? 0
       : Number(entered.cantidad_cajas) || 0;
 
-    const cantidadUnidades = (() => {
-      const upcSafe = isFinite(upc) && upc > 0 ? upc : 1;
-      return cajas * upcSafe;
-    })();
+    const cantidadUnidades = cajas * (Number.isFinite(upc) && upc > 0 ? upc : 1);
 
+    const loteVal = (entered.lote ?? "").toString().trim() || null;
+    const fechaVtoVal = (entered.fecha_vencimiento ?? "").toString().trim() || null;
+
+    const costoCaja = Number(p.costo_caja ?? p.costo ?? 0) || 0;
+    const desc1 = Number(p.desc1_pct ?? 0) || 0;
+    const desc2 = Number(p.desc2_pct ?? 0) || 0;
+    const incPct = Number(p.incremento_pct ?? 0) || 0;
+    const costoFinalCaja = Number(p.costo_final_caja ?? p["costo final"] ?? 0) || 0;
+    const precioFinalUnit = Number(p.precio_final_unitario ?? 0) || 0;
+
+    // ---- 4) Payload listo para BD (sin strings vacíos) ----
     const row = {
       session_id: sesionActual.id,
-      producto: p.producto,
-      proveedor: p.proveedor,
-      linea: p.linea,
+      producto: nombreProducto,                      // <-- NOT NULL asegurado
+      proveedor: (p.proveedor ?? p.marca ?? "").toString().trim() || null,
+      linea: (p.linea ?? p.categoria ?? "").toString().trim() || null,
       codigo_barras: p.codigo_barras || null,
       cod_ref: p.cod_ref || null,
       unidades_por_caja: upc,
-      costo_caja: Number(p.costo_caja ?? p.costo ?? 0) || 0,
-      desc1_pct: Number(p.desc1_pct ?? 0) || 0,
-      desc2_pct: Number(p.desc2_pct ?? 0) || 0,
-      incremento_pct: Number(p.incremento_pct ?? 0) || 0,
-      costo_final_caja: Number(p.costo_final_caja ?? p["costo final"] ?? 0) || 0,
-      precio_final_unitario: Number(p.precio_final_unitario ?? 0) || 0,
+      costo_caja: costoCaja,
+      desc1_pct: desc1,
+      desc2_pct: desc2,
+      incremento_pct: incPct,
+      costo_final_caja: costoFinalCaja,
+      precio_final_unitario: precioFinalUnit,
 
       // Nuevos campos (fase 1)
       cantidad_cajas: cajas,
       cantidad_unidades: cantidadUnidades,
-      lote: entered.lote || null,
-      fecha_vencimiento: entered.fecha_vencimiento || null,
+      lote: loteVal,
+      fecha_vencimiento: fechaVtoVal,
 
       // Estado para revisión
       estado: "pendiente_revision",
     };
 
-    // Insert en Supabase
+    // ---- 5) Insert en Supabase ----
     const { error: errIns } = await supabase.from("historial_calculos").insert(row);
+
     if (errIns) {
-      console.error("Error insertando en historial_calculos:", errIns);
+      console.error("Error insertando en historial_calculos:", {
+        code: errIns.code,
+        message: errIns.message,
+        details: errIns.details,
+        hint: errIns.hint,
+      });
       alert("No se pudo registrar en el historial.");
       return;
     }
 
-    // Refresco local (si mantienes bitácora en memoria)
+    // ---- 6) Refresco local y limpieza de inputs ----
     setBitacora((prev) => [
       ...prev,
       { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...row },
     ]);
-
-    // Limpieza de los tres nuevos inputs
     setCostosIngresados((prev) => ({
       ...prev,
       [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: "", lote: "", fecha_vencimiento: "" },
