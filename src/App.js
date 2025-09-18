@@ -2583,3 +2583,168 @@ async function cargarDecisionesDeSesion() {
 }
 
       
+
+
+
+// 19.3. Exportar decisiones a Excel desde v_export_pos (corrige no-undef)
+async function exportarDecisionesExcel() {
+  try {
+    const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+    if (!sessionId) {
+      alert("No hay sesión activa ni en revisión para exportar.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("v_export_pos")
+      .select("*")
+      .eq("sesion_id", sessionId);
+    if (error) throw error;
+    const rows = data || [];
+    if (rows.length === 0) {
+      alert("No hay decisiones para exportar.");
+      return;
+    }
+    const excelData = rows.map((r, i) => ({
+      "#": i + 1,
+      "Sesión": r.sesion_id,
+      "Nombre Sesión": r.sesion_nombre || "",
+      "Sucursal": r.sesion_sucursal || "",
+      "Producto": r.producto || "",
+      "Proveedor": r.proveedor || "",
+      "Línea": r.linea || "",
+      "Código Barras": r.codigo_barras || "",
+      "Cod Ref": r.cod_ref || "",
+      "Unid/Caja": Number(r.unidades_por_caja ?? 0),
+      "Calc Caja (Bs)": Number(r.calculado_caja ?? 0),
+      "Calc Unit (Bs)": Number(r.calculado_unitario ?? 0),
+      "Cant Cajas": Number(r.cantidad_cajas ?? 0),
+      "Cant Unidades": Number(r.cantidad_unidades ?? 0),
+      "Lote": r.lote || "",
+      "Vencimiento": r.fecha_vencimiento || "",
+      "Decisión": r.decision || "",
+      "ERP Unit Usado (Bs)": Number(r.erp_unitario_usado ?? 0),
+      "Calc Unit Usado (Bs)": Number(r.calc_unitario_usado ?? 0),
+      "Final Unit (Bs)": Number(r.final_unitario ?? 0),
+      "Final Caja (Bs)": Number(r.final_caja ?? 0),
+      "Usuario Revisor": r.usuario_revisor || "",
+      "Fecha Decisión": r.fecha_decision || "",
+      "Motivo": r.motivo || "",
+    }));
+
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 38 }, { wch: 20 }, { wch: 30 }, { wch: 18 }, { wch: 16 },
+      { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 28 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Decisiones");
+    const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `decisiones_revision_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error("exportarDecisionesExcel() error:", e);
+    alert("No se pudieron exportar las decisiones.");
+  }
+}
+
+
+
+
+// 19.4. Guardar una decisión de línea (corrige no-undef)
+async function guardarDecisionLinea(historialId, decisionRow) {
+  try {
+    const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+    if (!sessionId) {
+      alert("No hay sesión activa ni en revisión.");
+      return;
+    }
+    // Si no viene la fila como argumento, intenta obtenerla del estado 'decisiones'
+    let row = decisionRow;
+    if (!row && typeof decisiones === "object") {
+      row = decisiones[historialId];
+    }
+    if (!historialId || !row) {
+      alert("Faltan datos de la decisión.");
+      return;
+    }
+
+    const payload = {
+      session_id: sessionId,
+      historial_id: historialId,
+      decision: row.decision ?? row.accion_tomada ?? null,
+      precio_final: row.precio_final ?? row.precio_final_aprobado ?? null,
+      precio_erp_usado: row.precio_erp_usado ?? row.erp_unitario_usado ?? null,
+      precio_calculado_usado: row.precio_calculado_usado ?? row.calc_unitario_usado ?? null,
+      motivo: row.motivo ?? row.observaciones ?? null,
+      usuario_revisor: row.usuario_revisor ?? usuario?.email ?? "revisor",
+      fecha_decision: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("revision_lineas")
+      .upsert(payload, { onConflict: "session_id,historial_id" });
+    if (error) throw error;
+
+    alert("Decisión guardada.");
+    // Opcional: refrescar historial de decisiones
+    if (typeof cargarDecisionesDeSesion === "function") {
+      await cargarDecisionesDeSesion();
+    }
+  } catch (e) {
+    console.error("guardarDecisionLinea() error:", e);
+    alert("No se pudo guardar la decisión.");
+  }
+}
+
+
+
+
+// 19.5. Guardar todas las decisiones en memoria (corrige no-undef)
+async function guardarTodasLasDecisiones() {
+  try {
+    const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+    if (!sessionId) {
+      alert("No hay sesión activa ni en revisión.");
+      return;
+    }
+    if (!decisiones || typeof decisiones !== "object" || Object.keys(decisiones).length === 0) {
+      alert("No hay decisiones para guardar.");
+      return;
+    }
+    const rows = Object.entries(decisiones).map(([historialId, row]) => ({
+      session_id: sessionId,
+      historial_id: historialId,
+      decision: row.decision ?? row.accion_tomada ?? null,
+      precio_final: row.precio_final ?? row.precio_final_aprobado ?? null,
+      precio_erp_usado: row.precio_erp_usado ?? row.erp_unitario_usado ?? null,
+      precio_calculado_usado: row.precio_calculado_usado ?? row.calc_unitario_usado ?? null,
+      motivo: row.motivo ?? row.observaciones ?? null,
+      usuario_revisor: row.usuario_revisor ?? usuario?.email ?? "revisor",
+      fecha_decision: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from("revision_lineas")
+      .upsert(rows, { onConflict: "session_id,historial_id" });
+    if (error) throw error;
+
+    alert(`Se guardaron ${rows.length} decisiones.`);
+    if (typeof cargarDecisionesDeSesion === "function") {
+      await cargarDecisionesDeSesion();
+    }
+  } catch (e) {
+    console.error("guardarTodasLasDecisiones() error:", e);
+    alert("No se pudieron guardar todas las decisiones.");
+  }
+}
+
