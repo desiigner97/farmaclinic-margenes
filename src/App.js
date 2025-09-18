@@ -1893,6 +1893,7 @@ async function finalizarSesion() {
                                 title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
                                 style={hardInput}
                               />
+                            </div>
                                   {/* 21.X. Captura logística: Cantidad (cajas), Lote y Vencimiento */}
 <div className="mt-4">
   {/* Etiqueta de sección */}
