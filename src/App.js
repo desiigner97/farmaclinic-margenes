@@ -1894,79 +1894,96 @@ async function finalizarSesion() {
                                 style={hardInput}
                               />
                                   {/* 21.X. Captura logística: Cantidad (cajas), Lote y Vencimiento */}
-<div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-  {/* Cantidad (cajas) */}
-  <div className={cn("flex flex-col gap-1")}>
-    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-      Cantidad (cajas)
-    </label>
-    <input
-      type="number"
-      min={0}
-      step="1"
-      className={cn(
-        "rounded-xl px-3 py-2 border focus:outline-none focus:ring",
-        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-      )}
-      placeholder="0"
-      value={costosIngresados[p.id]?.cantidad_cajas ?? ""}
-      onChange={(e) => {
-        const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0);
-        setCostosIngresados((prev) => ({
-          ...prev,
-          [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: val }
-        }));
-      }}
-    />
+<div className="mt-4">
+  {/* Etiqueta de sección */}
+  <div className={cn("mb-2 text-xs tracking-wide uppercase",
+    isDark ? "text-slate-400" : "text-slate-500"
+  )}>
+    Logística
   </div>
 
-  {/* Lote */}
-  <div className={cn("flex flex-col gap-1")}>
-    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-      Lote
-    </label>
-    <input
-      type="text"
-      className={cn(
-        "rounded-xl px-3 py-2 border focus:outline-none focus:ring uppercase",
-        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-      )}
-      placeholder="Ej: A23X7"
-      value={costosIngresados[p.id]?.lote ?? ""}
-      onChange={(e) => {
-        setCostosIngresados((prev) => ({
-          ...prev,
-          [p.id]: { ...(prev[p.id] || {}), lote: e.target.value.trim().toUpperCase() }
-        }));
-      }}
-    />
-  </div>
+  {/* Fila compacta y responsiva */}
+  <div className="flex flex-wrap items-end gap-3">
+    {/* Cantidad (cajas) */}
+    <div className="flex flex-col gap-1">
+      <label className={cn("text-xs font-medium", isDark ? "text-slate-300" : "text-slate-700")}>
+        Cantidad (cajas)
+      </label>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step="1"
+        className={cn(
+          "h-10 w-[140px] rounded-xl px-3 py-2 border text-sm focus:outline-none focus:ring",
+          isDark ? "bg-slate-900/60 border-slate-700 text-slate-100 placeholder-slate-500"
+                 : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+        )}
+        placeholder="0"
+        value={costosIngresados[p.id]?.cantidad_cajas ?? ""}
+        onChange={(e) => {
+          const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0);
+          setCostosIngresados((prev) => ({
+            ...prev,
+            [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: val }
+          }));
+        }}
+      />
+    </div>
 
-  {/* Fecha de vencimiento */}
-  <div className={cn("flex flex-col gap-1")}>
-    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-      Vencimiento
-    </label>
-    <input
-      type="date"
-      className={cn(
-        "rounded-xl px-3 py-2 border focus:outline-none focus:ring",
-        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-      )}
-      value={costosIngresados[p.id]?.fecha_vencimiento ?? ""}
-      onChange={(e) => {
-        setCostosIngresados((prev) => ({
-          ...prev,
-          [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" }
-        }));
-      }}
-    />
+    {/* Lote */}
+    <div className="flex flex-col gap-1">
+      <label className={cn("text-xs font-medium", isDark ? "text-slate-300" : "text-slate-700")}>
+        Lote
+      </label>
+      <input
+        type="text"
+        className={cn(
+          "h-10 w-[180px] rounded-xl px-3 py-2 border text-sm focus:outline-none focus:ring uppercase tracking-wide",
+          isDark ? "bg-slate-900/60 border-slate-700 text-slate-100 placeholder-slate-500"
+                 : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+        )}
+        placeholder="EJ-123"
+        value={costosIngresados[p.id]?.lote ?? ""}
+        onChange={(e) => {
+          setCostosIngresados((prev) => ({
+            ...prev,
+            [p.id]: { ...(prev[p.id] || {}), lote: e.target.value.trim().toUpperCase() }
+          }));
+        }}
+      />
+    </div>
+
+    {/* Vencimiento (con selector nativo de calendario) */}
+    <div className="flex flex-col gap-1">
+      <label className={cn("text-xs font-medium", isDark ? "text-slate-300" : "text-slate-700")}>
+        Vencimiento
+      </label>
+      <input
+        type="date"
+        className={cn(
+          "h-10 w-[190px] rounded-xl px-3 py-2 border text-sm focus:outline-none focus:ring",
+          isDark ? "bg-slate-900/60 border-slate-700 text-slate-100"
+                 : "bg-white border-slate-300 text-slate-900"
+        )}
+        min={new Date().toISOString().slice(0,10)}
+        value={costosIngresados[p.id]?.fecha_vencimiento ?? ""}
+        onChange={(e) => {
+          setCostosIngresados((prev) => ({
+            ...prev,
+            [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" }
+          }));
+        }}
+      />
+      {/* Hint breve debajo */}
+      <span className={cn("mt-0.5 text-[10px]",
+        isDark ? "text-slate-500" : "text-slate-500"
+      )}>
+        Usa el calendario para seleccionar la fecha.
+      </span>
+    </div>
   </div>
 </div>
-
-                            </div>
-                          </div>
-                        </div>
 
                         {/* 21.7. Panel de resultados por caja */}
                         <div
