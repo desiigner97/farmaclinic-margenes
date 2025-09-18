@@ -637,6 +637,22 @@ export default function AppMargenes() {
   }, []);
 
   // 12.4. Finalizador de sesiones y envío a revisión
+// 12.5. Cargador de sesiones pendientes para el módulo de revisión
+async function cargarSesionesPendientes() {
+  try {
+    const estadosPendientes = ['enviada_revision', 'finalizada'];
+    const { data, error } = await supabase
+      .from('sesiones_trabajo')
+      .select('*')
+      .in('estado', estadosPendientes)
+      .order('fecha_inicio', { ascending: false });
+    if (error) throw error;
+    setSesionesPendientes(data || []);
+  } catch (e) {
+    console.error('Error cargando sesiones pendientes:', e);
+    alert('No se pudieron cargar las sesiones pendientes.');
+  }
+}
  async function finalizarSesion() {
   try {
     if (!sesionActual?.id) {
@@ -737,7 +753,42 @@ export default function AppMargenes() {
     }));
   }
 
-  // 13.4. Finalizador del proceso de revisión completo
+  // 13.8. Cargar decisiones de la sesión actual (Supabase) — VERSION CORRECTA
+async function cargarDecisionesDeSesion() {
+  const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+  if (!sessionId) {
+    alert("No hay sesión activa ni sesión en revisión.");
+    return;
+  }
+  try {
+    setLoadingDecisiones(true);
+    const { data, error } = await supabase
+      .from("revision_lineas")
+      .select(`
+        id,
+        historial_id,
+        session_id,
+        decision,
+        precio_final,
+        precio_erp_usado,
+        precio_calculado_usado,
+        motivo,
+        usuario_revisor,
+        fecha_decision
+      `)
+      .eq("session_id", sessionId)
+      .order("fecha_decision", { ascending: false });
+    if (error) throw error;
+    setDecisionesHistorial(data || []);
+  } catch (e) {
+    console.error("Error cargando decisiones:", e);
+    alert("No se pudieron cargar las decisiones.");
+  } finally {
+    setLoadingDecisiones(false);
+  }
+}
+
+// 13.4. Finalizador del proceso de revisión completo
   async function finalizarRevisionActual() {
     if (!sesionEnRevision) return;
     try {
@@ -764,198 +815,8 @@ export default function AppMargenes() {
     }
   }, [vistaActiva]);
   
-  // 13.8. Cargar decisiones de la sesión actual (Supabase)
-  async function cargarDecisionesDeSesion() {
-    if (!sesionEnRevision && !sesionActual) {
-      alert("No hay sesión activa ni sesión en revisión.");
-      return;
-    }
-    try {
-      setLoadingDecisiones(true);
-      const sessionId = (sesionEnRevision?.id ?? sesionActual?.id);
-      // Ajusta el nombre de la tabla y columnas a tu esquema real:
-      const { data, error } = await supabase
-        .from("revision_decisiones")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("fecha", { ascending: false });
+  // [REMOVED old cargarDecisionesDeSesion that pointed to 'revision_decisiones']
 
-      if (error) throw error;
-      setDecisionesHistorial(data || []);
-    } catch (e) {
-      console.error("Error cargando decisiones:", e);
-      alert("No se pudieron cargar las decisiones.");
-    } finally {
-      setLoadingDecisiones(false);
-    }
-  }
-
-  // 13.9. Exportar decisiones a Excel
-  async function exportarDecisionesExcel() {
-    if (!decisionesHistorial.length) {
-      alert("No hay decisiones para exportar.");
-      return;
-    }
-    try {
-      const rows = decisionesHistorial.map((r, i) => ({
-        "N°": i + 1,
-        Fecha: r.fecha ? new Date(r.fecha).toLocaleString("es-BO") : "",
-        Producto: r.producto || "",
-        Proveedor: r.proveedor || "",
-        "Marca/Línea": r.linea || "",
-        "Código de Barras": r.codigo_barras || "",
-        "Código Ref": r.cod_ref || "",
-        "Precio Calculado (Bs)": (r.precio_calculado ?? r.precio_final_caja ?? r["precio final"] ?? 0).toFixed?.(2) ?? "",
-        "Precio Sistema (Bs)": (r.precio_sistema ?? 0).toFixed?.(2) ?? "",
-        "Decisión": (r.tipo ?? "").toUpperCase(),
-        "Precio Sugerido (Bs)": (r.precio_sugerido ?? "").toString(),
-        "Motivo": r.motivo ?? "",
-        "Usuario": r.usuario ?? "",
-      }));
-
-      const XLSX = await import("xlsx");
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws["!cols"] = [
-        { wch: 5 }, { wch: 20 }, { wch: 35 }, { wch: 18 }, { wch: 18 },
-        { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
-        { wch: 20 }, { wch: 40 }, { wch: 16 },
-      ];
-      XLSX.utils.book_append_sheet(wb, ws, "Decisiones");
-
-      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `FarmaClinic_Decisiones_${new Date().toISOString().slice(0,10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-      alert(`✅ Exportadas ${rows.length} decisiones`);
-    } catch (e) {
-      console.error(e);
-      alert("Error al exportar decisiones.");
-    }
-  }
-
-  // 13.6. Guardar decisión de una línea puntual
-  async function guardarDecisionLinea(linea) {
-    try {
-      const dec = decisiones[linea.id] || {};
-      // Normalizamos payload
-      const payload = {
-        decision_tipo: dec.tipo || null,
-        decision_precio_sugerido: dec.precio_sugerido != null ? Number(dec.precio_sugerido) : null,
-        decision_motivo: dec.motivo || null,
-        revisado_por: "revisor", // ajusta si manejas usuario real
-        fecha_revision: new Date().toISOString(),
-        // Opcional: actualizar estado según la decisión
-        estado:
-          dec.tipo === "aprobado"
-            ? "aprobado"
-            : dec.tipo === "rechazado"
-            ? "rechazado"
-            : dec.tipo === "ajustar"
-            ? "ajustar"
-            : (linea.estado || "pendiente_revision"),
-      };
-
-      const { error } = await supabase
-        .from("historial_calculos")
-        .update(payload)
-        .eq("id", linea.id);
-
-      if (error) throw error;
-      alert(`✅ Decisión guardada para: ${linea.producto}`);
-    } catch (e) {
-      console.error(e);
-      alert("❌ No se pudo guardar la decisión de esta línea");
-    }
-  }
-
-  // 13.7. Guardar TODAS las decisiones de la sesión en lote
-  async function guardarTodasLasDecisiones() {
-    if (!sesionEnRevision) return;
-    try {
-      // Construimos payloads por id
-      const updates = productosRevision.map((r) => {
-        const dec = decisiones[r.id] || {};
-        return {
-          id: r.id,
-          decision_tipo: dec.tipo || null,
-          decision_precio_sugerido: dec.precio_sugerido != null ? Number(dec.precio_sugerido) : null,
-          decision_motivo: dec.motivo || null,
-          revisado_por: "revisor",
-          fecha_revision: new Date().toISOString(),
-          estado:
-            dec.tipo === "aprobado"
-              ? "aprobado"
-              : dec.tipo === "rechazado"
-              ? "rechazado"
-              : dec.tipo === "ajustar"
-              ? "ajustar"
-              : (r.estado || "pendiente_revision"),
-        };
-      });
-
-      // Hacemos updates uno a uno (seguro) para evitar errores por upsert masivo
-      for (const u of updates) {
-        const { error } = await supabase
-          .from("historial_calculos")
-          .update(u)
-          .eq("id", u.id);
-        if (error) throw error;
-      }
-
-      alert("💾 Todas las decisiones fueron guardadas");
-    } catch (e) {
-      console.error(e);
-      alert("❌ No se pudieron guardar todas las decisiones");
-    }
-  }
-  // 13.8. Cargar decisiones de la sesión actual (Supabase) — REEMPLAZO COMPLETO
-async function cargarDecisionesDeSesion() {
-  // Usamos la sesión en revisión si existe, sino la sesión actual
-  const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
-
-  if (!sessionId) {
-    alert("No hay sesión activa ni sesión en revisión.");
-    return;
-  }
-
-  try {
-    setLoadingDecisiones(true);
-
-    // En tu esquema real: la tabla es revision_lineas y la fecha es fecha_decision
-    const { data, error } = await supabase
-      .from("revision_lineas")
-      .select(`
-        id,
-        historial_id,
-        session_id,
-        decision,
-        precio_final,
-        precio_erp_usado,
-        precio_calculado_usado,
-        motivo,
-        usuario_revisor,
-        fecha_decision
-      `)
-      .eq("session_id", sessionId)
-      .order("fecha_decision", { ascending: false });
-
-    if (error) throw error;
-
-    // Guarda en tu estado de historial de decisiones (asegúrate de tener este state)
-    setDecisionesHistorial(data || []);
-  } catch (e) {
-    console.error("Error cargando decisiones:", e);
-    alert("No se pudieron cargar las decisiones.");
-  } finally {
-    setLoadingDecisiones(false);
-  }
-}
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 14. SISTEMA DE REGISTRO Y VALIDACIÓN EN BITÁCORA
