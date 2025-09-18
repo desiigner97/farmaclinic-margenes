@@ -1840,7 +1840,9 @@ export default function AppMargenes() {
                                   });
                                 }}
                                 title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
-{/* 21.X. Captura logística: Cantidad (cajas), Lote y Vencimiento */}
+                                style={hardInput}
+                              />
+                                  {/* 21.X. Captura logística: Cantidad (cajas), Lote y Vencimiento */}
 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
   {/* Cantidad (cajas) */}
   <div className={cn("flex flex-col gap-1")}>
@@ -1904,15 +1906,13 @@ export default function AppMargenes() {
       onChange={(e) => {
         setCostosIngresados((prev) => ({
           ...prev,
-          [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" } // YYYY-MM-DD
+          [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" }
         }));
       }}
     />
   </div>
 </div>
 
-                                style={hardInput}
-                              />
                             </div>
                           </div>
                         </div>
