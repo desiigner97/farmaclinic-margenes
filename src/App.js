@@ -1463,7 +1463,7 @@ setTimeout(() => {
         // 24. VISTA DEL MÓDULO DE REVISIÓN
         // ═══════════════════════════════════════════════════════════════════════════════ */}
         {vistaActiva === "revision" && (
-          <div className="relative mx-auto max-w-4xl space-y-6">
+          <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
             {/* 24.1. Encabezado del módulo de revisión */}
             <header>
               <h1
