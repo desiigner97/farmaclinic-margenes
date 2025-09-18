@@ -634,11 +634,21 @@ export default function AppMargenes() {
   }
 
   async function cargarSesionesPendientes() {
-    try {
-      const estadosPendientes = ['enviada_revision', 'finalizada'];
-      const [data, setData] = useState(DEMO); 
+  try {
+    const estadosPendientes = ['enviada_revision', 'finalizada'];
+    const { data, error } = await supabase
+      .from('sesiones_trabajo')
+      .select('*')
+      .in('estado', estadosPendientes)
+      .order('fecha_inicio', { ascending: false });
+    if (error) throw error;
+    setSesionesPendientes(data || []);
+  } catch (e) {
+    console.error('Error cargando sesiones pendientes:', e);
+    alert('No se pudieron cargar las sesiones pendientes.');
+  }
+}
 
-  // ═══════════════════════════════════════════════════════════════════════════════
   // 8.1. ESTADOS PRINCIPALES DEL SISTEMA
   // ═══════════════════════════════════════════════════════════════════════════════
   const [data, setData] = useState(DEMO);
