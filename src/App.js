@@ -355,43 +355,43 @@ function aplicarDescuentosProveedor(c, d1 = 0, d2 = 0) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 7. SISTEMA DE EXPORTACIÓN A EXCEL CON FORMATO Y RESUMEN ESTADÍSTICO
 // ═══════════════════════════════════════════════════════════════════════════════
-function exportBitacora(bitacora) {
-  if (!bitacora.length) {
-    alert("No hay registros para exportar");
-    return;
-  }
-
+function exportBitacora(bitacora = []) {
   try {
+    if (!Array.isArray(bitacora) || bitacora.length === 0) {
+      alert("No hay registros para exportar.");
+      return;
+    }
+
     const excelData = bitacora.map((r, index) => ({
       "N°": index + 1,
-      Fecha: new Date(r.fecha).toLocaleString("es-BO", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
+      Fecha: new Date(r.fecha || Date.now()).toLocaleString("es-BO", {
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
       }),
       Producto: r.producto || "",
       Proveedor: r.proveedor || "",
       "Marca/Línea": r.linea || "",
       "Código de Barras": r.codigo_barras || "",
       "Código Ref": r.cod_ref || "",
-      "Unidades por Caja": r.unidades_por_caja || 1,
-      "Costo Caja (Bs)": Number(r.costo ?? r.costo_caja_ingresado ?? 0).toFixed(2),
+      "Unidades por Caja": Number(r.unidades_por_caja ?? 1),
+      "Cantidad (Cajas)": Number(r.cantidad_cajas ?? 0),           // nuevo
+      "Cantidad (Unidades)": Number(r.cantidad_unidades ?? 0),     // nuevo
+      "Lote": r.lote ?? "",                                        // nuevo
+      "Vencimiento": r.fecha_vencimiento ?? "",                    // nuevo
+      "Costo Caja (Bs)": Number(r.costo ?? r.costo_caja ?? r.costo_caja_ingresado ?? 0).toFixed(2),
       "Costo Unitario (Bs)": Number(
-        (r.costo ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1)
+        (r.costo ?? r.costo_caja ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1)
       ).toFixed(2),
       "Descuento 1 (%)": Number((r.desc1_pct ?? 0) * 100).toFixed(2),
       "Descuento 2 (%)": Number((r.desc2_pct ?? 0) * 100).toFixed(2),
       "Incremento (%)": Number((r.incremento_pct ?? 0) * 100).toFixed(2),
       "Parámetros Manuales": r.parametros_manual ? "SÍ" : "NO",
-      "Costo Neto Caja (Bs)": Number(r["costo final"] ?? r.costo_neto_caja ?? 0).toFixed(2),
+      "Costo Neto Caja (Bs)": Number(r["costo final"] ?? r.costo_neto_caja ?? r.costo_final_caja ?? 0).toFixed(2),
       "Costo Neto Unitario (Bs)": Number(r.costo_neto_unidad ?? 0).toFixed(2),
       "PRECIO CAJA (Bs)": Number(r.precio ?? r["precio final"] ?? r.precio_final_caja ?? 0).toFixed(2),
       "PRECIO FRACCIÓN (Bs)": Number(r.precio_final_unidad ?? 0).toFixed(2),
-      Estado: (r.estado || "pendiente").toUpperCase(),
-      "Caso Especial": r.caso_especial || "",
+      Estado: (r.estado || "pendiente_revision").toUpperCase(),
       Usuario: r.usuario || "facturador",
+      "Sesión": r.session_id || "",
     }));
 
     import("xlsx")
@@ -399,88 +399,46 @@ function exportBitacora(bitacora) {
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(excelData);
         ws["!cols"] = [
-          { wch: 5 },
-          { wch: 16 },
-          { wch: 35 },
-          { wch: 15 },
-          { wch: 12 },
-          { wch: 15 },
-          { wch: 12 },
-          { wch: 8 },
-          { wch: 12 },
-          { wch: 12 },
-          { wch: 10 },
-          { wch: 10 },
-          { wch: 10 },
-          { wch: 12 },
-          { wch: 14 },
-          { wch: 14 },
-          { wch: 14 },
-          { wch: 14 },
-          { wch: 12 },
-          { wch: 12 },
-          { wch: 10 },
-          { wch: 12 },
-          { wch: 10 },
+          { wch: 5 },  { wch: 16 }, { wch: 35 }, { wch: 15 }, { wch: 16 }, { wch: 15 },
+          { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+          { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 38 },
         ];
-        XLSX.utils.book_append_sheet(wb, ws, "Registro de Márgenes");
+        XLSX.utils.book_append_sheet(wb, ws, "Bitacora");
 
+        // Resumen (mantengo tu lógica base)
         const resumen = [
-          { Métrica: "Total de productos procesados", Valor: bitacora.length },
-          {
-            Métrica: "Productos con parámetros manuales",
-            Valor: bitacora.filter((r) => r.parametros_manual).length,
+          { Métrica: "Total de registros", Valor: bitacora.length },
+          { Métrica: "Promedio descuento 1 (%)", Valor: (
+              bitacora.reduce((sum, r) => sum + ((r.desc1_pct ?? 0) * 100), 0) / bitacora.length
+            ).toFixed(2)
           },
-          {
-            Métrica: "Productos con casos especiales",
-            Valor: bitacora.filter(
-              (r) => r.caso_especial && r.caso_especial.toLowerCase() === "si"
-            ).length,
+          { Métrica: "Promedio descuento 2 (%)", Valor: (
+              bitacora.reduce((sum, r) => sum + ((r.desc2_pct ?? 0) * 100), 0) / bitacora.length
+            ).toFixed(2)
           },
-          {
-            Métrica: "Promedio descuento 1 (%)",
-            Valor: (
-              bitacora.reduce((sum, r) => sum + ((r.desc1_pct ?? 0) * 100), 0) /
-              bitacora.length
-            ).toFixed(2),
-          },
-          {
-            Métrica: "Promedio descuento 2 (%)",
-            Valor: (
-              bitacora.reduce((sum, r) => sum + ((r.desc2_pct ?? 0) * 100), 0) /
-              bitacora.length
-            ).toFixed(2),
-          },
-          {
-            Métrica: "Promedio incremento (%)",
-            Valor: (
-              bitacora.reduce((sum, r) => sum + ((r.incremento_pct ?? 0) * 100), 0) /
-              bitacora.length
-            ).toFixed(2),
+          { Métrica: "Promedio incremento (%)", Valor: (
+              bitacora.reduce((sum, r) => sum + ((r.incremento_pct ?? 0) * 100), 0) / bitacora.length
+            ).toFixed(2)
           },
         ];
         const wsResumen = XLSX.utils.json_to_sheet(resumen);
         wsResumen["!cols"] = [{ wch: 35 }, { wch: 15 }];
         XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([excelBuffer], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
+        const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `FarmaClinic_Margenes_${new Date()
-          .toISOString()
-          .slice(0, 10)}_${new Date().toTimeString().slice(0, 5).replace(":", "")}.xlsx`;
+        a.download = `bitacora_margenes_${new Date().toISOString().slice(0, 10)}.xlsx`;
         document.body.appendChild(a);
         a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 100);
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-        alert(`✅ Excel exportado exitosamente con ${bitacora.length} registros`);
+        setTimeout(() => {
+          alert(`✅ Excel exportado exitosamente con ${bitacora.length} registros`);
+        }, 100);
       })
       .catch((err) => {
         console.error("Error al exportar:", err);
@@ -491,7 +449,6 @@ function exportBitacora(bitacora) {
     alert("Error al preparar la exportación");
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // 8. COMPONENTE PRINCIPAL - FARMACLINIC MÁRGENES - INICIO
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -680,59 +637,48 @@ export default function AppMargenes() {
   }, []);
 
   // 12.4. Finalizador de sesiones y envío a revisión
-  async function finalizarSesion() {
-    if (!sesionActual || bitacora.length === 0) {
-      alert("No hay productos en la sesión actual para finalizar");
+ async function finalizarSesion() {
+  try {
+    if (!sesionActual?.id) {
+      alert("No hay sesión activa para finalizar.");
       return;
     }
 
-    if (
-      !window.confirm(
-        `¿Finalizar sesión "${sesionActual.nombre}" con ${bitacora.length} productos y enviarla para revisión?`
-      )
-    ) {
+    // Contar registros reales en DB (no usar bitacora.length)
+    const { count, error: errCount } = await supabase
+      .from("historial_calculos")
+      .select("*", { count: "exact", head: true })
+      .eq("session_id", sesionActual.id);
+
+    if (errCount) {
+      console.error("Error contando productos de la sesión:", errCount);
+      alert("No se pudo finalizar: error contando productos");
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from("sesiones_trabajo")
-        .update({
-          estado: "enviada_revision",
-          fecha_finalizacion: new Date().toISOString(),
-          total_productos: bitacora.length,
-        })
-        .eq("id", sesionActual.id);
+    // Actualizar sesión a finalizada / enviada a revisión
+    const { error: errUpd } = await supabase
+      .from("sesiones_trabajo")
+      .update({
+        estado: "enviada_revision",
+        total_productos: count ?? 0,
+        fecha_finalizacion: new Date().toISOString(),
+      })
+      .eq("id", sesionActual.id);
 
-      if (error) {
-        console.error("Error finalizando sesión:", error);
-        alert("Error al finalizar sesión");
-        return;
-      }
-
-      alert(`Sesión "${sesionActual.nombre}" finalizada y enviada para revisión`);
-      await crearNuevaSesion();
-    } catch (err) {
-      console.error("Error conectando con Supabase:", err);
-      alert("Error de conexión al finalizar sesión");
+    if (errUpd) {
+      console.error("Error finalizando sesión:", errUpd);
+      alert("Error al finalizar sesión");
+      return;
     }
-  }
 
-  // 12.5. Cargador de sesiones pendientes para el módulo de revisión
-  async function cargarSesionesPendientes() {
-    try {
-      const { data: rows, error } = await supabase
-        .from("sesiones_trabajo")
-        .select("*")
-        .eq("estado", "enviada_revision")
-        .order("fecha_finalizacion", { ascending: false });
-
-      if (error) throw error;
-      setSesionesPendientes(rows || []);
-    } catch (err) {
-      console.error("Error cargando sesiones pendientes:", err);
-    }
+    alert(`Sesión "${sesionActual.nombre}" finalizada con ${count ?? 0} productos. Lista para revisión.`);
+    await crearNuevaSesion?.();
+  } catch (e) {
+    console.error("finalizarSesion() exception:", e);
+    alert("Ocurrió un error al finalizar la sesión.");
   }
+}
   // ═══════════════════════════════════════════════════════════════════════════════
   // 13. FUNCIONES AUXILIARES PARA EL MÓDULO DE REVISIÓN
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -993,88 +939,92 @@ export default function AppMargenes() {
 
   // 14.2. Registrador principal en bitácora con persistencia en Supabase
   async function registrarEnBitacora(p) {
-    if (!sesionActual) {
-      alert("No hay sesión activa");
+  try {
+    if (!sesionActual?.id) {
+      alert("No hay sesión activa. Crea una sesión antes de registrar.");
       return;
     }
 
     const entered = costosIngresados[p.id] || {};
     const upc = isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0 ? Number(p.unidades_por_caja) : 1;
-    const baseC = isFinite(entered.caja) ? Number(entered.caja) : p.costo_caja ?? 0;
-    const baseU = upc > 0 ? baseC / upc : baseC;
 
-    const ov = overrides[p.id] || {};
-    const baseD1 = p.desc1_pct || 0,
-      baseD2 = p.desc2_pct || 0,
-      baseInc = p.incremento_pct || 0;
-    const d1 = ov.d1 ?? baseD1;
-    const d2 = ov.d2 ?? baseD2;
-    const inc = ov.inc ?? baseInc;
-    const isManual = ov.d1 != null || ov.d2 != null || ov.inc != null;
+    // Validaciones ligeras
+    if (entered.cantidad_cajas !== undefined && entered.cantidad_cajas !== "" && Number(entered.cantidad_cajas) < 0) {
+      alert("La cantidad de cajas no puede ser negativa.");
+      return;
+    }
+    if (entered.lote && entered.lote.length > 40) {
+      alert("El código de lote es demasiado largo (máx. 40).");
+      return;
+    }
+    if (entered.fecha_vencimiento) {
+      const ok = /^\d{4}-\d{2}-\d{2}$/.test(entered.fecha_vencimiento);
+      if (!ok) {
+        alert("La fecha de vencimiento debe tener formato YYYY-MM-DD.");
+        return;
+      }
+    }
 
-    const netoU = aplicarDescuentosProveedor(baseU, d1, d2);
-    const netoC = aplicarDescuentosProveedor(baseC, d1, d2);
+    const cajas = (entered.cantidad_cajas === "" || entered.cantidad_cajas === undefined)
+      ? 0
+      : Number(entered.cantidad_cajas) || 0;
 
-    const finalU = netoU * (1 + inc);
-    const finalC = netoC * (1 + inc);
+    const cantidadUnidades = (() => {
+      const upcSafe = isFinite(upc) && upc > 0 ? upc : 1;
+      return cajas * upcSafe;
+    })();
 
     const row = {
       session_id: sesionActual.id,
-      session_name: sesionActual.nombre,
-      producto: p.nombre,
+      producto: p.producto,
       proveedor: p.proveedor,
-      linea: p.linea || "",
-      codigo_barras: p.codigo_barras || "",
-      cod_ref: p.cod_ref || "",
+      linea: p.linea,
+      codigo_barras: p.codigo_barras || null,
+      cod_ref: p.cod_ref || null,
       unidades_por_caja: upc,
-      costo_caja: baseC,
-      desc1_pct: d1,
-      desc2_pct: d2,
-      incremento_pct: inc,
-      costo_final_caja: netoC,
-      precio_final_caja: finalC,
-      precio_final_unitario: finalU,
-      parametros_manual: isManual,
+      costo_caja: Number(p.costo_caja ?? p.costo ?? 0) || 0,
+      desc1_pct: Number(p.desc1_pct ?? 0) || 0,
+      desc2_pct: Number(p.desc2_pct ?? 0) || 0,
+      incremento_pct: Number(p.incremento_pct ?? 0) || 0,
+      costo_final_caja: Number(p.costo_final_caja ?? p["costo final"] ?? 0) || 0,
+      precio_final_unitario: Number(p.precio_final_unitario ?? 0) || 0,
+
+      // Nuevos campos (fase 1)
+      cantidad_cajas: cajas,
+      cantidad_unidades: cantidadUnidades,
+      lote: entered.lote || null,
+      fecha_vencimiento: entered.fecha_vencimiento || null,
+
+      // Estado para revisión
       estado: "pendiente_revision",
-      usuario: "facturador",
-      sector: "facturacion",
     };
 
-    try {
-      const { data: inserted, error } = await supabase
-        .from("historial_calculos")
-        .insert([row])
-        .select();
-
-      if (error) {
-        console.error("Error guardando en Supabase:", error);
-        alert("Error al guardar en la base de datos");
-        return;
-      }
-
-      const savedRow = {
-        ...row,
-        id: inserted[0].id,
-        fecha: inserted[0].fecha_creacion,
-        "costo final": netoC,
-        precio: finalC,
-        "precio final": finalC,
-        fecha_creacion: inserted[0].fecha_creacion,
-      };
-
-      setBitacora((prev) => [...prev, savedRow]);
-
-      await supabase
-        .from("sesiones_trabajo")
-        .update({ total_productos: bitacora.length + 1 })
-        .eq("id", sesionActual.id);
-
-      alert("Producto registrado en la sesión actual");
-    } catch (err) {
-      console.error("Error conectando con Supabase:", err);
-      alert("Error de conexión con la base de datos");
+    // Insert en Supabase
+    const { error: errIns } = await supabase.from("historial_calculos").insert(row);
+    if (errIns) {
+      console.error("Error insertando en historial_calculos:", errIns);
+      alert("No se pudo registrar en el historial.");
+      return;
     }
+
+    // Refresco local (si mantienes bitácora en memoria)
+    setBitacora((prev) => [
+      ...prev,
+      { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...row },
+    ]);
+
+    // Limpieza de los tres nuevos inputs
+    setCostosIngresados((prev) => ({
+      ...prev,
+      [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: "", lote: "", fecha_vencimiento: "" },
+    }));
+
+    alert("Registro agregado a la bitácora.");
+  } catch (e) {
+    console.error("registrarEnBitacora() exception:", e);
+    alert("Ocurrió un error inesperado al registrar.");
   }
+}
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 15. SISTEMA DE DRAG & DROP Y MANIPULACIÓN DE HISTORIAL
@@ -1890,6 +1840,77 @@ export default function AppMargenes() {
                                   });
                                 }}
                                 title="Incremento en porcentaje (ej: 25.5 para 25.5%)"
+{/* 21.X. Captura logística: Cantidad (cajas), Lote y Vencimiento */}
+<div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+  {/* Cantidad (cajas) */}
+  <div className={cn("flex flex-col gap-1")}>
+    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
+      Cantidad (cajas)
+    </label>
+    <input
+      type="number"
+      min={0}
+      step="1"
+      className={cn(
+        "rounded-xl px-3 py-2 border focus:outline-none focus:ring",
+        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
+      )}
+      placeholder="0"
+      value={costosIngresados[p.id]?.cantidad_cajas ?? ""}
+      onChange={(e) => {
+        const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0);
+        setCostosIngresados((prev) => ({
+          ...prev,
+          [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: val }
+        }));
+      }}
+    />
+  </div>
+
+  {/* Lote */}
+  <div className={cn("flex flex-col gap-1")}>
+    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
+      Lote
+    </label>
+    <input
+      type="text"
+      className={cn(
+        "rounded-xl px-3 py-2 border focus:outline-none focus:ring uppercase",
+        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
+      )}
+      placeholder="Ej: A23X7"
+      value={costosIngresados[p.id]?.lote ?? ""}
+      onChange={(e) => {
+        setCostosIngresados((prev) => ({
+          ...prev,
+          [p.id]: { ...(prev[p.id] || {}), lote: e.target.value.trim().toUpperCase() }
+        }));
+      }}
+    />
+  </div>
+
+  {/* Fecha de vencimiento */}
+  <div className={cn("flex flex-col gap-1")}>
+    <label className={cn("text-sm font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
+      Vencimiento
+    </label>
+    <input
+      type="date"
+      className={cn(
+        "rounded-xl px-3 py-2 border focus:outline-none focus:ring",
+        isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
+      )}
+      value={costosIngresados[p.id]?.fecha_vencimiento ?? ""}
+      onChange={(e) => {
+        setCostosIngresados((prev) => ({
+          ...prev,
+          [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" } // YYYY-MM-DD
+        }));
+      }}
+    />
+  </div>
+</div>
+
                                 style={hardInput}
                               />
                             </div>
