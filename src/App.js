@@ -914,6 +914,49 @@ export default function AppMargenes() {
       alert("❌ No se pudieron guardar todas las decisiones");
     }
   }
+  // 13.8. Cargar decisiones de la sesión actual (Supabase) — REEMPLAZO COMPLETO
+async function cargarDecisionesDeSesion() {
+  // Usamos la sesión en revisión si existe, sino la sesión actual
+  const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+
+  if (!sessionId) {
+    alert("No hay sesión activa ni sesión en revisión.");
+    return;
+  }
+
+  try {
+    setLoadingDecisiones(true);
+
+    // En tu esquema real: la tabla es revision_lineas y la fecha es fecha_decision
+    const { data, error } = await supabase
+      .from("revision_lineas")
+      .select(`
+        id,
+        historial_id,
+        session_id,
+        decision,
+        precio_final,
+        precio_erp_usado,
+        precio_calculado_usado,
+        motivo,
+        usuario_revisor,
+        fecha_decision
+      `)
+      .eq("session_id", sessionId)
+      .order("fecha_decision", { ascending: false });
+
+    if (error) throw error;
+
+    // Guarda en tu estado de historial de decisiones (asegúrate de tener este state)
+    setDecisionesHistorial(data || []);
+  } catch (e) {
+    console.error("Error cargando decisiones:", e);
+    alert("No se pudieron cargar las decisiones.");
+  } finally {
+    setLoadingDecisiones(false);
+  }
+}
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // 14. SISTEMA DE REGISTRO Y VALIDACIÓN EN BITÁCORA
   // ═══════════════════════════════════════════════════════════════════════════════
