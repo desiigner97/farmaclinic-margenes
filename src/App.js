@@ -580,7 +580,7 @@ export default function AppMargenes() {
         precio_erp_usado: row.precio_erp_usado ?? row.erp_unitario_usado ?? null,
         precio_calculado_usado: row.precio_calculado_usado ?? row.calc_unitario_usado ?? null,
         motivo: row.motivo ?? row.observaciones ?? null,
-        usuario_revisor: row.usuario_revisor ?? usuario?.email ?? "revisor",
+        usuario_revisor: row.usuario_revisor ?? 'revisor' ?? "revisor",
         fecha_decision: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -616,7 +616,7 @@ export default function AppMargenes() {
         precio_erp_usado: row.precio_erp_usado ?? row.erp_unitario_usado ?? null,
         precio_calculado_usado: row.precio_calculado_usado ?? row.calc_unitario_usado ?? null,
         motivo: row.motivo ?? row.observaciones ?? null,
-        usuario_revisor: row.usuario_revisor ?? usuario?.email ?? "revisor",
+        usuario_revisor: row.usuario_revisor ?? 'revisor' ?? "revisor",
         fecha_decision: new Date().toISOString(),
       }));
       const { error } = await supabase
