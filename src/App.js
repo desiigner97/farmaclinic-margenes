@@ -1986,6 +1986,7 @@ async function finalizarSesion() {
   </div>
 </div>
 
+                        </div>
                         {/* 21.7. Panel de resultados por caja */}
                         <div
                           className={cn(
@@ -2047,6 +2048,7 @@ async function finalizarSesion() {
                             </div>
                           </div>
                         </div>
+                      </div>
                       </div>
 
                       {/* 21.9. Panel de acciones para cada producto */}
