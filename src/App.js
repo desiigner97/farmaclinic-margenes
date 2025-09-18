@@ -636,7 +636,7 @@ export default function AppMargenes() {
   async function cargarSesionesPendientes() {
     try {
       const estadosPendientes = ['enviada_revision', 'finalizada'];
-      const { data, error } 
+      const [data, setData] = useState(DEMO); 
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 8.1. ESTADOS PRINCIPALES DEL SISTEMA
