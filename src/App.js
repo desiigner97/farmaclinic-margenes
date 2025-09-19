@@ -26,9 +26,9 @@ import Papa from "papaparse";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { createClient } from "@supabase/supabase-js";
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 1. CONFIGURACIÓN INICIAL DE SUPABASE Y CONSTANTES DEL SISTEMA
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 const supabaseUrl = "https://qavzzmdxprkimtlrbmjw.supabase.co";
 const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhdnp6bWR4cHJraW10bHJibWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDcxOTAsImV4cCI6MjA3MzI4MzE5MH0.qN4CfWzeh2HhtJGzP9lgAlf3lDzZODmz2N-EcMyuOUo";
@@ -41,9 +41,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  *  - Estado local de inputs para edición cómoda.
  *  ======================= */
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 2. UTILIDADES DE FORMATEO Y CONVERSIÓN NUMÉRICA
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 const nf = new Intl.NumberFormat("es-BO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -94,9 +94,9 @@ function pctDisplay(overrideVal, baseVal) {
   return String(Math.round(percentage * 100) / 100);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 3. DATOS DEMO Y MUESTRAS PARA DESARROLLO
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 const DEMO = [
   {
     id: "7750001111111",
@@ -123,9 +123,10 @@ const DEMO = [
     incremento_pct: 0.3,
   },
 ];
-// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 4. SISTEMA DE NORMALIZACIÓN DE CABECERAS DE ARCHIVOS CSV/XLSX
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 function normalizarCabecera(c) {
   const s = (c || "").toString().trim().toLowerCase();
   if (["producto", "nombre", "nombre producto", "nombre_producto", "nombre product"].includes(s)) return "nombre";
@@ -210,9 +211,9 @@ function normalizarCabecera(c) {
   return s;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 5. PROCESADORES DE ARCHIVOS - PARSEADORES CSV Y XLSX
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // 5.1. Procesador específico para archivos CSV con Papa Parse
 function parseCSV(file, onDone) {
@@ -344,17 +345,17 @@ async function parseXLS(file, onDone) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 6. ALGORITMO DE CÁLCULO DE DESCUENTOS EN CASCADA
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 function aplicarDescuentosProveedor(c, d1 = 0, d2 = 0) {
   const D1 = Math.min(Math.max(Number(d1) || 0, 0), 1);
   const D2 = Math.min(Math.max(Number(d2) || 0, 0), 1);
   return Number(c || 0) * (1 - D1) * (1 - D2);
 }
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 7. SISTEMA DE EXPORTACIÓN A EXCEL CON FORMATO Y RESUMEN ESTADÍSTICO
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 function exportBitacora(bitacora = []) {
   try {
     if (!Array.isArray(bitacora) || bitacora.length === 0) {
@@ -373,10 +374,10 @@ function exportBitacora(bitacora = []) {
       "Código de Barras": r.codigo_barras || "",
       "Código Ref": r.cod_ref || "",
       "Unidades por Caja": Number(r.unidades_por_caja ?? 1),
-      "Cantidad (Cajas)": Number(r.cantidad_cajas ?? 0),           // nuevo
-      "Cantidad (Unidades)": Number(r.cantidad_unidades ?? 0),     // nuevo
-      "Lote": r.lote ?? "",                                        // nuevo
-      "Vencimiento": r.fecha_vencimiento ?? "",                    // nuevo
+      "Cantidad (Cajas)": Number(r.cantidad_cajas ?? 0),
+      "Cantidad (Unidades)": Number(r.cantidad_unidades ?? 0),
+      "Lote": r.lote ?? "",
+      "Vencimiento": r.fecha_vencimiento ?? "",
       "Costo Caja (Bs)": Number(r.costo ?? r.costo_caja ?? r.costo_caja_ingresado ?? 0).toFixed(2),
       "Costo Unitario (Bs)": Number(
         (r.costo ?? r.costo_caja ?? r.costo_caja_ingresado ?? 0) / (r.unidades_por_caja || 1)
@@ -449,9 +450,10 @@ function exportBitacora(bitacora = []) {
     alert("Error al preparar la exportación");
   }
 }
-// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // 8. COMPONENTE PRINCIPAL - FARMACLINIC MÁRGENES - INICIO
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 export default function AppMargenes() {
 // === Inyectado: funciones de revisión y export dentro del componente (acceso a estados/props) ===
   async function exportarDecisionesExcel() {
@@ -584,7 +586,7 @@ export default function AppMargenes() {
         fecha_decision: new Date().toISOString(),
       };
       const { error } = await supabase
-        .from("revision_lineas")
+      .from("revision_lineas")
         .upsert(payload, { onConflict: "session_id,historial_id" });
       if (error) throw error;
       alert("Decisión guardada.");
@@ -650,7 +652,7 @@ export default function AppMargenes() {
 }
 
   // 8.1. ESTADOS PRINCIPALES DEL SISTEMA
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   const [data, setData] = useState(DEMO);
   const [query, setQuery] = useState("");
   const [proveedorFilter, setProveedorFilter] = useState("todos");
@@ -676,15 +678,19 @@ export default function AppMargenes() {
   const [decisionesHistorial, setDecisionesHistorial] = useState([]);
   const [loadingDecisiones, setLoadingDecisiones] = useState(false);
 
-  // 8.4. ESTADO DE LA SESIÓN DE TRABAJO ACTUAL
+  // 8.4. Estado de la sesión de trabajo actual
   const [sesionActual, setSesionActual] = useState(null);
+
+  // Estados para feedback visual de registro
+  const [registrosProcesados, setRegistrosProcesados] = useState(new Set());
+  const [procesandoRegistro, setProcesandoRegistro] = useState(new Set());
 
   // 15.2. Estados para eliminación con undo
   const undoTimerRef = useRef(null);
   const [undo, setUndo] = useState(null);
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 9. SISTEMA DE GESTIÓN DE TEMA VISUAL (DARK/LIGHT MODE)
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const t = localStorage.getItem("fc_theme");
     if (t === "dark" || t === "light") setTheme(t);
@@ -696,9 +702,9 @@ export default function AppMargenes() {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const cn = (...xs) => xs.filter(Boolean).join(" ");
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 10. GENERACIÓN AUTOMÁTICA DE LISTAS ÚNICAS PARA FILTROS
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   const proveedores = useMemo(() => {
     const s = new Set();
     data.forEach((p) => p.proveedor && s.add(p.proveedor));
@@ -728,9 +734,9 @@ export default function AppMargenes() {
     });
   }, [data, query, proveedorFilter, lineaFilter]);
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 11. MANEJADOR DE CARGA DE ARCHIVOS CSV/XLSX
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   function onFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -744,9 +750,9 @@ export default function AppMargenes() {
     else parseCSV(f, handler);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 12. GESTIÓN DE SESIONES DE TRABAJO - CREAR, CARGAR, FINALIZAR
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
   // 12.1. Creación de nueva sesión de trabajo
   async function crearNuevaSesion() {
@@ -832,7 +838,6 @@ export default function AppMargenes() {
   }, []);
 
   // 12.4. Finalizador de sesiones y envío a revisión
-// [REMOVED duplicate function cargarSesionesPendientes]
 async function finalizarSesion() {
   try {
     if (!sesionActual?.id) {
@@ -875,9 +880,9 @@ async function finalizarSesion() {
     alert("Ocurrió un error al finalizar la sesión.");
   }
 }
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 13. FUNCIONES AUXILIARES PARA EL MÓDULO DE REVISIÓN
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
   // 13.1. Apertura de sesión específica para proceso de revisión
   async function abrirSesionParaRevision(sesion) {
@@ -933,9 +938,7 @@ async function finalizarSesion() {
     }));
   }
 
-  // 13.8. Cargar decisiones de la sesión actual (Supabase) — VERSION CORRECTA
-// [REMOVED duplicate function cargarDecisionesDeSesion]
-// 13.4. Finalizador del proceso de revisión completo
+  // 13.4. Finalizador del proceso de revisión completo
   async function finalizarRevisionActual() {
     if (!sesionEnRevision) return;
     try {
@@ -962,12 +965,10 @@ async function finalizarSesion() {
     }
   }, [vistaActiva]);
   
-  // [REMOVED old cargarDecisionesDeSesion that pointed to 'revision_decisiones']
 
-
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 14. SISTEMA DE REGISTRO Y VALIDACIÓN EN BITÁCORA
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
   // 14.1. Validador previo antes de registrar en bitácora
   function validarYRegistrar(p) {
@@ -988,13 +989,16 @@ async function finalizarSesion() {
     registrarEnBitacora(p);
   }
 
-  // 14.2. Registrador principal en bitácora con persistencia en Supabase
+  // 14.2. Registrador principal en bitácora con persistencia en Supabase y feedback visual
   async function registrarEnBitacora(p) {
   try {
     if (!sesionActual?.id) {
       alert("No hay sesión activa. Crea una sesión antes de registrar.");
       return;
     }
+
+    // Indicar que se está procesando
+    setProcesandoRegistro(prev => new Set([...prev, p.id]));
 
     // ---- 1) SAFETY: obtener nombre de producto de forma tolerante ----
     const nombreProducto =
@@ -1007,16 +1011,19 @@ async function finalizarSesion() {
 
     // Validaciones ligeras
     if (entered.cantidad_cajas !== undefined && entered.cantidad_cajas !== "" && Number(entered.cantidad_cajas) < 0) {
+      setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
       alert("La cantidad de cajas no puede ser negativa.");
       return;
     }
     if (entered.lote && entered.lote.length > 40) {
+      setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
       alert("El código de lote es demasiado largo (máx. 40).");
       return;
     }
     if (entered.fecha_vencimiento) {
       const ok = /^\d{4}-\d{2}-\d{2}$/.test(entered.fecha_vencimiento);
       if (!ok) {
+        setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
         alert("La fecha de vencimiento debe tener formato YYYY-MM-DD.");
         return;
       }
@@ -1075,6 +1082,7 @@ async function finalizarSesion() {
         details: errIns.details,
         hint: errIns.hint,
       });
+      setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
       alert("No se pudo registrar en el historial.");
       return;
     }
@@ -1084,42 +1092,31 @@ async function finalizarSesion() {
       ...prev,
       { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...row },
     ]);
+    
     setCostosIngresados((prev) => ({
       ...prev,
       [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: "", lote: "", fecha_vencimiento: "" },
     }));
 
-    // Mostrar confirmación visual en lugar de alert
-setCostosIngresados((prev) => ({
-  ...prev,
-  [p.id]: { 
-    ...(prev[p.id] || {}), 
-    cantidad_cajas: "", 
-    lote: "", 
-    fecha_vencimiento: "",
-    confirmado: true
-  },
-}));
+    // ---- 7) Feedback visual exitoso ----
+    setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
+    setRegistrosProcesados(prev => new Set([...prev, p.id]));
+    
+    // Limpiar el feedback después de 3 segundos
+    setTimeout(() => {
+      setRegistrosProcesados(prev => { const next = new Set(prev); next.delete(p.id); return next; });
+    }, 3000);
 
-// Ocultar confirmación después de 3 segundos
-setTimeout(() => {
-  setCostosIngresados((prev) => {
-    const updated = { ...prev };
-    if (updated[p.id]) {
-      delete updated[p.id].confirmado;
-    }
-    return updated;
-  });
-}, 3000);
   } catch (e) {
     console.error("registrarEnBitacora() exception:", e);
+    setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
     alert("Ocurrió un error inesperado al registrar.");
   }
 }
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 15. SISTEMA DE DRAG & DROP Y MANIPULACIÓN DE HISTORIAL
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
   // 15.1. Manejador para reordenamiento por drag & drop
   function handleDragEnd(result) {
@@ -1192,7 +1189,7 @@ setTimeout(() => {
         setTimeout(() => setUndo(null), 500);
       } catch (e) {
         console.error("No se pudo eliminar en Supabase:", e);
-        alert("❌ No se pudo eliminar en la base de datos. Se revierte el cambio local.");
+        alert("⚠ No se pudo eliminar en la base de datos. Se revierte el cambio local.");
         // rollback
         setBitacora(prev);
         setUndo(null);
@@ -1231,15 +1228,16 @@ setTimeout(() => {
       `Unid/Caja: ${upc}`,
       `Costo Caja: Bs ${nf.format(baseC)} | Costo U: Bs ${nf.format(baseU)}`,
       `Desc. prov: ${pf(d1)} + ${pf(d2)} (cascada) | Inc.: ${pf(inc)}`,
-      `Neto Caja: Bs ${nf.format(netoC)} | Neto U: Bs ${nf.format(netoU)}`,
+      `Neto Caja: Bs ${nf.format(netoC)} |
+      Neto U: Bs ${nf.format(netoU)}`,
       `Final Caja: Bs ${nf.format(finalC)} | Final U: Bs ${nf.format(finalU)}`,
     ].join("\n");
     navigator.clipboard.writeText(texto);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 16. DEFINICIÓN DE CLASES CSS Y ESTILOS DINÁMICOS
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
   // 16.1. Clase principal del wrapper con gradientes dinámicos
   const wrapperClass = cn("min-h-screen w-full relative overflow-hidden", isDark ? "text-slate-100" : "text-slate-800");
@@ -1314,9 +1312,9 @@ setTimeout(() => {
     border: isDark ? "2px solid rgba(99,102,241,0.3)" : "2px solid rgba(99,102,241,0.2)",
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   // 17. COMPONENTE DE BARRA LATERAL DE NAVEGACIÓN
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
   const Sidebar = () => {
     const menuItems = [
       {
@@ -1400,71 +1398,863 @@ setTimeout(() => {
           ))}
         </nav>
 
-        
+        {/* Resumen de sesión visible en módulos donde aplica */}
+        {sesionActual && (vistaActiva === "margenes" || vistaActiva === "revision") && (
+          <div className={cn("mt-8 p-4 rounded-2xl border-2", isDark ? "bg-blue-500/10 border-blue-400/30" : "bg-blue-50 border-blue-200")}>
+            <div className="text-sm font-bold mb-2">Sesión Actual</div>
+            <div className={cn("text-sm mb-1", isDark ? "text-slate-300" : "text-slate-600")}>{sesionActual.nombre}</div>
+            <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>{bitacora.length} productos registrados</div>
+          </div>
+        )}
 
-            {/* ═══════════════════════════════════════════════════════════════════════════════
-            // 23. PIE DE PÁGINA DEL MÓDULO DE MÁRGENES
-            // ═══════════════════════════════════════════════════════════════════════════════ */}
+        <div className="mt-8">
+          <Button
+            onClick={toggleTheme}
+            className={cn(
+              "w-full rounded-2xl",
+              isDark ? "bg-white/10 border-2 border-white/20 text-white hover:bg-white/20" : "bg-slate-100 border-2 border-slate-300 text-slate-800 hover:bg-slate-200"
+            )}
+          >
+            {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+            {isDark ? "Modo Claro" : "Modo Oscuro"}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+  // 18. RENDER PRINCIPAL DEL COMPONENTE
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+  return (
+    <div className={wrapperClass}>
+      <style>{`
+        input, input[type="text"], input[type="number"]{
+          color: inherit !important;
+          -webkit-text-fill-color: inherit !important;
+          caret-color: currentColor !important;
+          opacity: 1 !important;
+        }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+          50% { box-shadow: 0 0 30px rgba(99,102,241,0.5); }
+        }
+        .price-highlight { animation: pulseGlow 2s ease-in-out infinite; }
+        .card-hover:hover { transform: translateY(-2px) scale(1.005); }
+      `}</style>
+
+      {bgMain}
+
+      {/* 18.1. Barra lateral de navegación */}
+      <Sidebar />
+
+      {/* 18.2. Contenido principal con margen por sidebar */}
+      <div className="ml-80 min-h-screen">
+        {vistaActiva === "margenes" && (
+          <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
+            {/* ENCABEZADO PRINCIPAL */}
+            <header className="group flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1
+                  className={cn(
+                    "text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent drop-shadow-2xl",
+                    isDark ? "bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-cyan-300" : "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600"
+                  )}
+                >
+                  💊 Módulo de Márgenes
+                </h1>
+                <p className={cn("mt-2 text-lg font-medium", isDark ? "text-slate-300/90" : "text-slate-600")}>
+                  Descuentos de proveedor en cascada + incremento.{" "}
+                  <span className={cn("font-bold", isDark ? "text-emerald-300" : "text-emerald-600")}>Sistema de Facturación Profesional</span>
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <div style={{ fontSize: 14, opacity: 0.9 }} className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Build: <b>PRO-UX V8.2</b> - d1/d2 COPIA EXACTA de Inc 🔥
+                  </div>
+                </div>
+
+                {sesionActual && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold",
+                        isDark ? "bg-blue-500/20 border border-blue-400/30 text-blue-200" : "bg-blue-100 border border-blue-300 text-blue-700"
+                      )}
+                    >
+                      <Package className="h-4 w-4" />
+                      Sesión: {sesionActual.nombre}
+                    </div>
+                    <div className={cn("px-2 py-1 rounded-lg text-xs font-medium", isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600")}>
+                      {bitacora.length} productos
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botones de acción principales del header */}
+              <div className="flex items-center gap-3">
+                <label
+                  className={cn(
+                    "inline-flex items-center gap-3 text-sm px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 cursor-pointer",
+                    isDark
+                      ? "bg-white/10 border-2 border-white/20 shadow-2xl shadow-indigo-950/30 hover:bg-white/15 hover:shadow-indigo-500/30"
+                      : "bg-white/90 border-2 border-slate-300 shadow-xl hover:bg-slate-50 hover:shadow-slate-400/40"
+                  )}
+                >
+                  <FileUp className="h-5 w-5" />
+                  <span className="font-semibold">Importar CSV/XLSX</span>
+                  <input type="file" accept=".csv,.xlsx,.xls" onChange={onFile} className="hidden" />
+                </label>
+
+                <Button
+                  onClick={() => exportBitacora(bitacora)}
+                  disabled={bitacora.length === 0}
+                  className={cn(
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    bitacora.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : isDark
+                      ? "bg-emerald-600/80 hover:bg-emerald-600 border-2 border-emerald-500 backdrop-blur-xl text-white shadow-2xl shadow-emerald-900/50"
+                      : "bg-emerald-600 hover:bg-emerald-700 border-2 border-emerald-500 text-white shadow-xl shadow-emerald-500/30"
+                  )}
+                >
+                  <FileDown className="h-5 w-5 mr-2" />
+                  📊 Exportar Excel ({bitacora.length})
+                </Button>
+
+                <Button
+                  onClick={finalizarSesion}
+                  disabled={!sesionActual || bitacora.length === 0}
+                  className={cn(
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    !sesionActual || bitacora.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : isDark
+                      ? "bg-purple-600/80 hover:bg-purple-600 border-2 border-purple-500 backdrop-blur-xl text-white shadow-2xl shadow-purple-900/50"
+                      : "bg-purple-600 hover:bg-purple-700 border-2 border-purple-500 text-white shadow-xl shadow-purple-500/30"
+                  )}
+                >
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  Finalizar Sesión
+                </Button>
+
+                <Button
+                  onClick={crearNuevaSesion}
+                  className={cn(
+                    "rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 px-4 py-3",
+                    isDark
+                      ? "bg-orange-600/80 hover:bg-orange-600 border-2 border-orange-500 backdrop-blur-xl text-white shadow-2xl shadow-orange-900/50"
+                      : "bg-orange-600 hover:bg-orange-700 border-2 border-orange-500 text-white shadow-xl shadow-orange-500/30"
+                  )}
+                >
+                  <Package className="h-5 w-5 mr-2" />
+                  Nueva Sesión
+                </Button>
+              </div>
+            </header>
+
+            {/* SECCIÓN DE FILTROS Y BÚSQUEDA */}
+            <Card className={cardClass}>
+              <CardHeader className="pb-3 sticky top-0 z-10 backdrop-blur-xl">
+                <CardTitle className={cn("text-xl font-bold flex items-center gap-2", isDark ? "text-slate-100" : "text-slate-800")}>
+                  <Search className="h-5 w-5" />
+                  Buscar y filtrar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
+                {/* Input de búsqueda por texto libre */}
+                <div className="relative md:col-span-6">
+                  <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5", isDark ? "text-slate-300" : "text-slate-500")} />
+                  <input
+                    type="text"
+                    placeholder="Buscar por producto, proveedor, marca/línea, código de barras o código ref"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    style={{ ...hardInput, textAlign: "left", paddingLeft: "3rem", height: "3rem", fontSize: "1rem" }}
+                    autoComplete="off"
+                  />
+                </div>
+
+                {/* Selector de filtro por proveedor */}
+                <div className="md:col-span-3">
+                  <Select value={proveedorFilter} onValueChange={setProveedorFilter}>
+                    <SelectTrigger
+                      className={cn(
+                        "w-full rounded-2xl h-12 text-base font-medium",
+                        isDark ? "bg-white/10 border-2 border-white/20 text-slate-100" : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                      )}
+                    >
+                      <SelectValue placeholder="Proveedor" />
+                    </SelectTrigger>
+                    <SelectContent className={isDark ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl" : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"}>
+                      {proveedores.map((p) => (
+                        <SelectItem key={p} value={p} className={cn("focus:bg-white/15 font-medium", !isDark && "focus:bg-slate-100")}>
+                          {p === "todos" ? "Todos los proveedores" : p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Selector de filtro por línea/marca */}
+                <div className="md:col-span-3">
+                  <Select value={lineaFilter} onValueChange={setLineaFilter}>
+                    <SelectTrigger
+                      className={cn(
+                        "w-full rounded-2xl h-12 text-base font-medium",
+                        isDark ? "bg-white/10 border-2 border-white/20 text-slate-100" : "bg-white/90 border-2 border-slate-300 text-slate-800"
+                      )}
+                    >
+                      <SelectValue placeholder="Marca/Línea" />
+                    </SelectTrigger>
+                    <SelectContent className={isDark ? "bg-slate-900/95 border-2 border-white/20 text-slate-100 backdrop-blur-xl" : "bg-white/95 border-2 border-slate-300 text-slate-800 backdrop-blur-xl"}>
+                      {lineas.map((l) => (
+                        <SelectItem key={l} value={l} className={cn("focus:bg-white/15 font-medium", !isDark && "focus:bg-slate-100")}>
+                          {l === "todas" ? "Todas las marcas/líneas" : l}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Controles adicionales de vista */}
+                <div className="md:col-span-12 flex flex-wrap gap-3 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn(
+                      "rounded-xl px-4 py-2 font-semibold transition-all duration-300 hover:scale-105",
+                      showNetos
+                        ? isDark
+                          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30"
+                          : "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200"
+                        : isDark
+                        ? "bg-white/10 border-white/20 hover:bg-white/15"
+                        : "bg-white border-slate-300 hover:bg-slate-50"
+                    )}
+                    onClick={() => setShowNetos((v) => !v)}
+                  >
+                    <ListFilter className="h-4 w-4 mr-2" />
+                    {showNetos ? "Ocultar Netos" : "Ver Netos"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Layout principal de dos columnas */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Columna izquierda: Productos */}
+              <div className="xl:col-span-8 space-y-6">
+              {filtrados.map((p) => {
+                // Cálculo de valores base y procesamiento de overrides
+                const entered = costosIngresados[p.id] || {};
+                const upc = isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0 ? Number(p.unidades_por_caja) : 1;
+
+                const baseC = isFinite(entered.caja) ? Number(entered.caja) : p.costo_caja ?? 0;
+                const baseU = upc > 0 ? baseC / upc : baseC;
+
+                const ov = overrides[p.id] || {};
+                const baseD1 = p.desc1_pct || 0;
+                const baseD2 = p.desc2_pct || 0;
+                const baseInc = p.incremento_pct || 0;
+                const d1 = ov.d1 ?? baseD1;
+                const d2 = ov.d2 ?? baseD2;
+                const inc = ov.inc ?? baseInc;
+                const isManual = ov.d1 != null || ov.d2 != null || ov.inc != null;
+
+                // Aplicación del algoritmo de descuentos en cascada
+                const netoC = aplicarDescuentosProveedor(baseC, d1, d2);
+                const finalC = netoC * (1 + inc);
+                const netoU = aplicarDescuentosProveedor(baseU, d1, d2);
+                const finalU = netoU * (1 + inc);
+
+                const caso = (p.caso_especial || "").toString().trim().toLowerCase();
+
+                return (
+                  <Card key={p.id} className={cn(cardClass, "card-hover")}>
+                    <CardContent className="p-5 md:p-6">
+                      {/* Cabecera de la tarjeta con información del producto */}
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="min-w-0">
+                          <div className="font-bold text-lg md:text-xl leading-tight line-clamp-2 mb-2" title={p.nombre}>
+                            <Package className="inline h-5 w-5 mr-2" />
+                            {p.nombre}
+                          </div>
+                          <div className={cn("text-sm opacity-90 truncate max-w-full mb-2", isDark ? "text-slate-300" : "text-slate-600")}>
+                            📊 EAN: {p.codigo_barras || "-"} · Ref: {p.cod_ref || "-"}
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span
+                              className={cn(
+                                "inline-block truncate px-3 py-1.5 rounded-full text-sm font-semibold",
+                                isDark
+                                  ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30 text-indigo-200"
+                                  : "bg-gradient-to-r from-indigo-100 to-purple-100 border border-indigo-300 text-indigo-700"
+                              )}
+                              title={p.proveedor || "-"}
+                            >
+                              🏢 {p.proveedor || "-"}
+                            </span>
+                            <span className={cn("text-sm opacity-90 px-2 py-1 rounded-lg", isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600")}>🏷️ {p.linea || "-"}</span>
+                            {isManual && (
+                              <span
+                                className={cn(
+                                  "text-sm px-3 py-1 rounded-full font-bold animate-pulse",
+                                  isDark
+                                    ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200 border border-amber-400/50"
+                                    : "bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-400"
+                                )}
+                              >
+                                ✏️ MANUAL
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Chip indicador de estado del producto */}
+                        <div className="shrink-0">
+                          {(function (estado) {
+                            const base =
+                              "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-lg
+                              transition-all duration-300 hover:scale-105 ";
+                            if ((estado || "").toLowerCase() === "si")
+                              return (
+                                <span
+                                  className={
+                                    base +
+                                    (isDark
+                                      ? "bg-gradient-to-r from-rose-500/30 to-red-500/30 text-rose-200 shadow-rose-900/50 border border-rose-400/50"
+                                      : "bg-gradient-to-r from-rose-200 to-red-200 text-rose-800 shadow-rose-300 border-rose-400")
+                                  }
+                                >
+                                  <AlertCircle className="h-4 w-4" /> CASO ESPECIAL
+                                </span>
+                              );
+                            if ((estado || "").toLowerCase() === "consultar")
+                              return (
+                                <span
+                                  className={
+                                    base +
+                                    (isDark
+                                      ? "bg-gradient-to-r from-amber-500/30 to-yellow-500/30 text-amber-200 shadow-amber-900/50 border border-amber-400/50"
+                                      : "bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800 shadow-amber-300 border-amber-400")
+                                  }
+                                >
+                                  <Info className="h-4 w-4" /> CONSULTAR
+                                </span>
+                              );
+                            return (
+                              <span
+                                className={
+                                  base +
+                                  (isDark
+                                    ? "bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-200 shadow-emerald-900/50 border border-emerald-400/50"
+                                    : "bg-gradient-to-r from-emerald-200 to-green-200 text-emerald-800 shadow-emerald-300 border-emerald-400")
+                                }
+                              >
+                                <CheckCircle2 className="h-4 w-4" /> OK
+                              </span>
+                            );
+                          })(caso)}
+                        </div>
+                      </div>
+
+                      {/* Layout compacto de inputs y resultados */}
+                      <div className="space-y-4">
+                        {/* Panel compacto de inputs */}
+                        <div className={cn(
+                          "p-4 rounded-2xl border-2",
+                          isDark ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-400/30" : "bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-300"
+                        )}>
+                          {/* Fila 1: Costo principal */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <div className="text-sm font-bold mb-2">💰 Costo por Caja</div>
+                              <div className="flex rounded-xl overflow-hidden border-2" style={{
+                                borderColor: isDark ? "rgba(99,102,241,0.4)" : "rgba(99,102,241,0.3)",
+                              }}>
+                                <span className={cn(
+                                  "px-3 inline-flex items-center text-sm font-bold",
+                                  isDark ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-indigo-200" : "bg-gradient-to-r from-indigo-200 to-purple-200 text-indigo-800"
+                                )}>
+                                  Bs
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0.00"
+                                  autoComplete="off"
+                                  value={
+                                    costosIngresados[p.id]?.caja === undefined || costosIngresados[p.id]?.caja === null
+                                      ? p.costo_caja ?? ""
+                                      : String(costosIngresados[p.id]?.caja ?? "")
+                                  }
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === "" || /^[\d\s.,]*$/.test(raw)) {
+                                      setCostosIngresados((prev) => ({
+                                        ...prev,
+                                        [p.id]: { caja: raw === "" ? undefined : raw },
+                                      }));
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw !== "") {
+                                      const numValue = numBO(raw);
+                                      if (numValue !== undefined) {
+                                        setCostosIngresados((prev) => ({
+                                          ...prev,
+                                          [p.id]: { caja: numValue },
+                                        }));
+                                      }
+                                    }
+                                  }}
+                                  title="Costo por Caja - Acepta: 123.45, 123,45, 1.234,56"
+                                  style={costInputStyle}
+                                />
+                              </div>
+                              <div className={cn("text-xs mt-1 opacity-90 tabular-nums", isDark ? "text-emerald-300" : "text-emerald-600")}>
+                                💊 Unit: Bs {nf.format(baseU)} (x{upc})
+                              </div>
+                            </div>
+
+                            {/* Logística compacta en la misma fila */}
+                            <div>
+                              <div className="text-sm font-bold mb-2">📦 Logística</div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder="Cajas"
+                                    className={cn(
+                                      "w-full h-9 px-2 rounded-lg border text-xs",
+                                      isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                    )}
+                                    value={costosIngresados[p.id]?.cantidad_cajas ?? ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setCostosIngresados((prev) => ({
+                                        ...prev,
+                                        [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: val }
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <input
+                                    type="text"
+                                    placeholder="Lote"
+                                    className={cn(
+                                      "w-full h-9 px-2 rounded-lg border text-xs uppercase",
+                                      isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                    )}
+                                    value={costosIngresados[p.id]?.lote ?? ""}
+                                    onChange={(e) => {
+                                      setCostosIngresados((prev) => ({
+                                        ...prev,
+                                        [p.id]: { ...(prev[p.id] || {}), lote: e.target.value.trim().toUpperCase() }
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <input
+                                    type="date"
+                                    className={cn(
+                                      "w-full h-9 px-2 rounded-lg border text-xs",
+                                      isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                    )}
+                                    min={new Date().toISOString().slice(0,10)}
+                                    value={costosIngresados[p.id]?.fecha_vencimiento ?? ""}
+                                    onChange={(e) => {
+                                      setCostosIngresados((prev) => ({
+                                        ...prev,
+                                        [p.id]: { ...(prev[p.id] || {}), fecha_vencimiento: e.target.value || "" }
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Fila 2: Descuentos e incremento compactos */}
+                          <div className="grid grid-cols-4 gap-3 mt-4">
+                            <div>
+                              <div className="text-xs font-semibold mb-1">📉 d1 %</div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9.,%]*"
+                                autoComplete="off"
+                                value={pctDisplay(overrides[p.id]?.d1, p.desc1_pct)}
+                                onChange={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  setOverrides((prev) => {
+                                    const next = { ...(prev[p.id] || {}) };
+                                    if (dec === undefined) delete next.d1;
+                                    else if (dec !== null) next.d1 = dec;
+                                    return { ...prev, [p.id]: next };
+                                  });
+                                }}
+                                title="d1 (proveedor) %"
+                                className={cn(
+                                  "w-full h-8 px-2 rounded-lg border text-xs text-right",
+                                  isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                )}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-semibold mb-1">📉 d2 %</div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9.,%]*"
+                                autoComplete="off"
+                                value={pctDisplay(overrides[p.id]?.d2, p.desc2_pct)}
+                                onChange={(e) => {
+                                  const dec = parsePercentInput(e.target.value);
+                                  setOverrides((prev) => {
+                                    const next = { ...(prev[p.id] || {}) };
+                                    if (dec === undefined) delete next.d2;
+                                    else if (dec !== null) next.d2 = dec;
+                                    return { ...prev, [p.id]: next };
+                                  });
+                                }}
+                                title="d2 (proveedor) %"
+                                className={cn(
+                                  "w-full h-8 px-2 rounded-lg border text-xs text-right",
+                                  isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                )}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-semibold mb-1">📈 Inc. %</div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1000"
+                                placeholder="0"
+                                value={
+                                  editingInputs[`${p.id}_inc`] !== undefined
+                                    ? editingInputs[`${p.id}_inc`]
+                                    : overrides[p.id]?.inc !== undefined
+                                    ? overrides[p.id].inc * 100
+                                    : p.incremento_pct
+                                    ? p.incremento_pct * 100
+                                    : ""
+                                }
+                                onFocus={() => {
+                                  const currentValue =
+                                    overrides[p.id]?.inc !== undefined
+                                      ? overrides[p.id].inc * 100
+                                      : p.incremento_pct
+                                      ? p.incremento_pct * 100
+                                      : "";
+                                  setEditingInputs((prev) => ({ ...prev, [`${p.id}_inc`]: currentValue }));
+                                }}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setEditingInputs((prev) => ({ ...prev, [`${p.id}_inc`]: value }));
+                                }}
+                                onBlur={(e) => {
+                                  const value = e.target.value;
+                                  if (value === "") {
+                                    setOverrides((prev) => {
+                                      const next = { ...(prev[p.id] || {}) };
+                                      delete next.inc;
+                                      return { ...prev, [p.id]: next };
+                                    });
+                                  } else {
+                                    const percent = parseFloat(value);
+                                    if (!isNaN(percent)) {
+                                      setOverrides((prev) => ({
+                                        ...prev,
+                                        [p.id]: {
+                                          ...(prev[p.id] || {}),
+                                          inc: percent / 100,
+                                        },
+                                      }));
+                                    }
+                                  }
+                                  setEditingInputs((prev) => {
+                                    const next = { ...prev };
+                                    delete next[`${p.id}_inc`];
+                                    return next;
+                                  });
+                                }}
+                                title="Incremento en porcentaje"
+                                className={cn(
+                                  "w-full h-8 px-2 rounded-lg border text-xs text-right",
+                                  isDark ? "bg-slate-900/60 border-slate-700 text-slate-100" : "bg-white border-slate-300"
+                                )}
+                              />
+                            </div>
+
+                            {/* Botón de restaurar integrado */}
+                            <div className="flex items-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!isManual}
+                                onClick={() => {
+                                  setOverrides((prev) => {
+                                    const n = { ...prev };
+                                    delete n[p.id];
+                                    return n;
+                                  });
+                                }}
+                                className={cn(
+                                  "h-8 px-3 rounded-lg text-xs",
+                                  isDark ? "bg-amber-500/10 border-amber-400/30 text-amber-200" : "bg-amber-50 border-amber-300 text-amber-700"
+                                )}
+                              >
+                                🔄
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Resultados compactos en dos columnas */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Caja */}
+                          <div className={cn(
+                            "p-3 rounded-xl border-2 text-center",
+                            isDark ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30" : "bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-300"
+                          )}>
+                            <div className="text-xs font-bold mb-1">📦 Precio Caja</div>
+                            {showNetos && (
+                              <div className={cn("text-xs opacity-80", isDark ? "text-amber-300" : "text-amber-600")}>
+                                Neto: Bs {nf.format(netoC)}
+                              </div>
+                            )}
+                            <div className={cn("font-bold text-lg tracking-tight", isDark ? "text-emerald-300" : "text-emerald-600")}>
+                              Bs {nf.format(finalC)}
+                            </div>
+                          </div>
+
+                          {/* Unitario */}
+                          <div className={cn(
+                            "p-3 rounded-xl border-2 text-center",
+                            isDark ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-400/30" : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300"
+                          )}>
+                            <div className="text-xs font-bold mb-1">💊 Precio Unit.</div>
+                            {showNetos && (
+                              <div className={cn("text-xs opacity-80", isDark ? "text-amber-300" : "text-amber-600")}>
+                                Neto: Bs {nf.format(netoU)}
+                              </div>
+                            )}
+                            <div className={cn("font-bold text-lg tracking-tight", isDark ? "text-blue-300" : "text-blue-600")}>
+                              Bs {nf.format(finalU)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Panel de acciones con feedback visual */}
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        {/* Indicador de estado visual */}
+                        <div className="flex-1">
+                          {registrosProcesados.has(p.id) && (
+                            <div className={cn(
+                              "inline-flex items-center gap-2 px-3 py-2 rounded-xl animate-pulse",
+                              isDark ? "bg-emerald-500/20 border border-emerald-400/40 text-emerald-200" : "bg-emerald-100 border border-emerald-300 text-emerald-700"
+                            )}>
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span className="font-semibold">Registrado exitosamente</span>
+                            </div>
+                          )}
+                          {procesandoRegistro.has(p.id) && (
+                            <div className={cn(
+                              "inline-flex items-center gap-2 px-3 py-2 rounded-xl",
+                              isDark ? "bg-blue-500/20 border border-blue-400/40 text-blue-200" : "bg-blue-100 border border-blue-300 text-blue-700"
+                            )}>
+                              <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                              <span className="font-semibold">Procesando...</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="lg"
+                            disabled={procesandoRegistro.has(p.id)}
+                            className={cn(
+                              "rounded-xl text-white px-4 py-2 font-bold transition-all duration-300 hover:scale-105",
+                              procesandoRegistro.has(p.id) 
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 shadow-xl"
+                            )}
+                            onClick={() => validarYRegistrar(p)}
+                          >
+                            {procesandoRegistro.has(p.id) ? (
+                              <>
+                                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                Procesando...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Validar y Registrar
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={cn(
+                              "rounded-xl px-3 py-2 font-semibold transition-all duration-300 hover:scale-105",
+                              isDark ? "bg-white/10 border-2 border-white/20 text-slate-100 hover:bg-white/15" : "bg-white/90 border-2 border-slate-300 text-slate-800 hover:bg-slate-50"
+                            )}
+                            onClick={() => copiarResumen(p)}
+                          >
+                            <ClipboardCopy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {/* Mensaje de estado cuando no hay resultados */}
+              {filtrados.length === 0 && (
+                <Card className={cardClass}>
+                  <CardContent className={cn("text-center py-12", isDark ? "text-slate-300" : "text-slate-600")}>
+                    <div className="text-6xl mb-4">🔍</div>
+                    <div className="text-xl font-semibold mb-2">Sin resultados</div>
+                    <div className="text-base">Ajusta tu búsqueda o carga tu archivo CSV/XLSX</div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Columna derecha: Historial en tiempo real */}
+            <div className="xl:col-span-4">
+              <div className="sticky top-6 space-y-4">
+                <Card className={cardClass}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className={cn("text-lg font-bold flex items-center gap-2", isDark ? "text-slate-100" : "text-slate-800")}>
+                      📊 Historial
+                      <span className={cn(
+                        "px-2 py-1 rounded-full text-xs font-bold",
+                        isDark ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-200" : "bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700"
+                      )}>
+                        {bitacora.length}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="max-h-[70vh] overflow-y-auto space-y-3">
+                    {bitacora.length === 0 ? (
+                      <div className={cn("text-center py-8", isDark ? "text-slate-300" : "text-slate-600")}>
+                        <div className="text-4xl mb-2">📝</div>
+                        <div className="text-sm">Registra productos para ver el historial</div>
+                      </div>
+                    ) : (
+                      bitacora.slice(-10).reverse().map((r, index) => (
+                        <div
+                          key={r.id || `item-${index}`}
+                          className={cn(
+                            "p-3 rounded-xl border-2 relative group",
+                            isDark ? "bg-gradient-to-br from-white/10 to-white/5 border-white/20 hover:scale-[1.02]" : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300 hover:scale-[1.02]"
+                          )}
+                        >
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 rounded text-red-500 hover:text-red-400"
+                              onClick={() => eliminarRegistro(bitacora.length - 1 - index, r)}
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+
+                          <div className="pr-8">
+                            <div className="font-semibold text-sm mb-1 line-clamp-2">{r.producto}</div>
+                            <div className={cn("text-xs opacity-80 mb-2", isDark ? "text-slate-400" : "text-slate-500")}>
+                              🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"}
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className={cn("px-2 py-1 rounded-lg", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                                <div className="opacity-80">💰 Costo</div>
+                                <div className="font-bold">Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}</div>
+                              </div>
+                              <div className={cn("px-2 py-1 rounded-lg", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
+                                <div className="opacity-80">🎯 Final</div>
+                                <div className="font-bold text-emerald-600">Bs {nf.format(r.precio ?? r["precio final"] ?? 0)}</div>
+                              </div>
+                            </div>
+
+                            <div className={cn("text-xs mt-2 opacity-70", isDark ? "text-slate-400" : "text-slate-500")}>
+                              📅 {new Date(r.fecha).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+
+                  <div className="px-6 pb-4">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => exportBitacora(bitacora)}
+                        disabled={bitacora.length === 0}
+                        className={cn(
+                          "flex-1 rounded-xl text-xs",
+                          bitacora.length === 0
+                            ? "opacity-50 cursor-not-allowed"
+                            : isDark ? "bg-emerald-600/80 hover:bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        )}
+                      >
+                        <FileDown className="h-3 w-3 mr-1" />
+                        Exportar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={finalizarSesion}
+                        disabled={!sesionActual || bitacora.length === 0}
+                        className={cn(
+                          "flex-1 rounded-xl text-xs",
+                          !sesionActual || bitacora.length === 0
+                            ? "opacity-50 cursor-not-allowed"
+                            : isDark ? "bg-purple-600/80 hover:bg-purple-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                        )}
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Finalizar
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
+
+            {/* PIE DE PÁGINA DEL MÓDULO DE MÁRGENES */}
             <footer className={cn("text-center py-8 space-y-2", isDark ? "text-slate-300" : "text-slate-600")}>
               <div className="text-2xl">💊</div>
               <div className="text-sm font-semibold">FarmaClinic · Módulo de Márgenes · {new Date().getFullYear()}</div>
               <div className="text-xs opacity-75">Sistema Profesional de Gestión de Precios Farmacéuticos</div>
             </footer>
-</div>
+          </div>
+        )}
 
-{/* Columna lateral derecha - Historial */}
-<div className="w-96 h-screen sticky top-0 p-4 pl-2">
-  <Card className={cn(cardClass, "h-full flex flex-col")}>
-    <CardHeader className="pb-3 flex-shrink-0">
-      <CardTitle className={cn("text-lg font-bold flex items-center gap-2", isDark ? "text-slate-100" : "text-slate-800")}>
-        Historial de Registros
-        <span className={cn("px-2 py-1 rounded-full text-xs font-bold", isDark ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-200" : "bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700")}>
-          {bitacora.length}
-        </span>
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="flex-1 overflow-hidden">
-      {bitacora.length === 0 ? (
-        <div className={cn("flex flex-col items-center justify-center h-full text-center", isDark ? "text-slate-300" : "text-slate-600")}>
-          <div className="text-4xl mb-3">📋</div>
-          <div className="text-sm font-semibold">Historial vacío</div>
-        </div>
-      ) : (
-        <div className="h-full overflow-y-auto space-y-3 pr-2">
-          {bitacora.map((r, index) => (
-            <div key={r.id || index} className={cn("p-3 rounded-xl border text-xs", isDark ? "bg-white/8 border-white/15" : "bg-white/90 border-slate-200")}>
-              <div className="font-semibold text-sm mb-2">{r.producto}</div>
-              <div className={cn("space-y-1 mb-2", isDark ? "text-slate-300" : "text-slate-600")}>
-                <div>🏢 {r.proveedor || "-"}</div>
-                <div>📅 {new Date(r.fecha || Date.now()).toLocaleDateString()}</div>
-                {r.lote && <div>🔢 Lote: {r.lote}</div>}
-                {r.cantidad_cajas && <div>📦 {r.cantidad_cajas} cajas</div>}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className={cn("px-2 py-1 rounded text-center", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
-                  <div className="text-xs">Precio Final</div>
-                  <div className="font-semibold">Bs {nf.format(r.precio || r["precio final"] || 0)}</div>
-                </div>
-                <div className={cn("px-2 py-1 rounded text-center", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
-                  <div className="text-xs">#{index + 1}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </CardContent>
-  </Card>
-</div>
-</>
-)}:shadow-lg"
-                                        : "bg-gradient-to-br from-white to-slate-50/80 border-slate-300 hover:scale-[1.02] hover
-                                          {/* ═══════════════════════════════════════════════════════════════════════════════
-        // 24. VISTA DEL MÓDULO DE REVISIÓN
-        // ═══════════════════════════════════════════════════════════════════════════════ */}
+        {/* VISTA DEL MÓDULO DE REVISIÓN */}
         {vistaActiva === "revision" && (
           <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
-            {/* 24.1. Encabezado del módulo de revisión */}
+            {/* Encabezado del módulo de revisión */}
             <header>
               <h1
                 className={cn(
@@ -1486,9 +2276,9 @@ setTimeout(() => {
               </p>
             </header>
 
-            {/* 24.2. Layout de dos columnas para revisión */}
+            {/* Layout de dos columnas para revisión */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* 24.3. Columna izquierda: Lista de sesiones pendientes */}
+              {/* Columna izquierda: Lista de sesiones pendientes */}
               <div className="lg:col-span-4">
                 <Card className={cardClass}>
                   <CardHeader className="pb-2">
@@ -1520,7 +2310,7 @@ setTimeout(() => {
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-semibold">{s.nombre}</div>
+                            <div className="font-semibold">{s.nombre}</div>
                               <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
                                 Finalizada: {s.fecha_finalizacion ? new Date(s.fecha_finalizacion).toLocaleString() : "-"}
                               </div>
@@ -1539,7 +2329,7 @@ setTimeout(() => {
                 </Card>
               </div>
 
-              {/* 24.4. Columna derecha: Detalle de la sesión seleccionada */}
+              {/* Columna derecha: Detalle de la sesión seleccionada */}
               <div className="lg:col-span-8">
                 {!sesionEnRevision ? (
                   <Card className={cardClass}>
@@ -1550,7 +2340,7 @@ setTimeout(() => {
                   </Card>
                 ) : (
                   <Card className={cardClass}>
-                    {/* 24.5. Encabezado del detalle de sesión (con Guardar todo) */}
+                    {/* Encabezado del detalle de sesión (con Guardar todo) */}
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
@@ -1591,7 +2381,7 @@ setTimeout(() => {
                       ) : (
                         <div className="space-y-3">
                           {productosRevision.map((r) => {
-                            // 24.8. Comparación, badges y controles
+                            // Comparación, badges y controles
                             const code = r.codigo_barras || r.cod_ref;
                             const ps = preciosSistema[code];
                             const precioCalc = r.precio_final_caja ?? r["precio final"] ?? 0;
@@ -1630,7 +2420,7 @@ setTimeout(() => {
                                   </span>
                                 </div>
 
-                                {/* 24.8. Grid de comparación y edición */}
+                                {/* Grid de comparación y edición */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                                   <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
                                     <div className="text-xs opacity-80 mb-1">Precio calculado</div>
@@ -1674,7 +2464,7 @@ setTimeout(() => {
                                   </div>
                                 </div>
 
-                                {/* 24.9. Campo de comentarios y guardado individual */}
+                                {/* Campo de comentarios y guardado individual */}
                                 <div className="mt-3 flex flex-col md:flex-row gap-3">
                                   <input
                                     type="text"
@@ -1713,9 +2503,7 @@ setTimeout(() => {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════════════════════
-        // 25. VISTA DEL MÓDULO DE HISTORIAL
-        // ═══════════════════════════════════════════════════════════════════════════════ */}
+        {/* VISTA DEL MÓDULO DE HISTORIAL */}
         {vistaActiva === "historial" && (
           <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 space-y-6">
             <header>
@@ -1752,9 +2540,3 @@ setTimeout(() => {
     </div>
   );
 }
-
-      
-
-
-
-// [REMOVED duplicate function guardarTodasLasDecisiones]
