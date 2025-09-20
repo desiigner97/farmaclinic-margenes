@@ -614,8 +614,8 @@ export default function AppMargenes() {
         return;
       }
 
-      // Preparar decisiones individuales para cada producto
-      const rows = productosRevision.map(r => {
+      // Preparar decisiones SOLO para productos que tienen decisión tomada
+      const rows = decisionesTomadas.map(r => {
         const code = r.codigo_barras || r.cod_ref;
         const ps = preciosSistema[code];
         const precioNuevo = r.precio_final_unitario ?? 0;
@@ -700,7 +700,7 @@ export default function AppMargenes() {
         return `${nombres[tipo]}: ${cantidad}`;
       }).join(', ');
 
-      alert(`Decisiones guardadas para ${rows.length} productos.\n${resumen}\nPrecios actualizados en el sistema.`);
+      alert(`Decisiones guardadas para ${rows.length} de ${productosRevision.length} productos.\n${resumen}\nPrecios actualizados en el sistema.`);
       
       // Limpiar decisiones y recargar
       setDecisiones({});
