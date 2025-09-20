@@ -601,37 +601,89 @@ export default function AppMargenes() {
 
   async function guardarTodasLasDecisiones() {
     try {
-      const sessionId = sesionEnRevision?.id ?? sesionActual?.id;
+      const sessionId = sesionEnRevision?.id;
       if (!sessionId) {
-        alert("No hay sesión activa ni en revisión.");
+        alert("No hay sesión en revisión.");
         return;
       }
-      if (!decisiones || typeof decisiones !== "object" || Object.keys(decisiones).length === 0) {
-        alert("No hay decisiones para guardar.");
+      
+      if (!decisiones.tipo_global) {
+        alert("Selecciona una decisión global primero.");
         return;
       }
-      const rows = Object.entries(decisiones).map(([historialId, row]) => ({
-        session_id: sessionId,
-        historial_id: historialId,
-        decision: row.decision ?? row.accion_tomada ?? null,
-        precio_final: row.precio_final ?? row.precio_final_aprobado ?? null,
-        precio_erp_usado: row.precio_erp_usado ?? row.erp_unitario_usado ?? null,
-        precio_calculado_usado: row.precio_calculado_usado ?? row.calc_unitario_usado ?? null,
-        motivo: row.motivo ?? row.observaciones ?? null,
-        usuario_revisor: row.usuario_revisor ?? 'revisor' ?? "revisor",
-        fecha_decision: new Date().toISOString(),
-      }));
+
+      // Preparar decisiones para todos los productos de la sesión
+      const rows = productosRevision.map(r => {
+        const code = r.codigo_barras || r.cod_ref;
+        const ps = preciosSistema[code];
+        const precioNuevo = r.precio_final_unitario ?? 0;
+        const precioAnterior = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : 
+                              decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
+        
+        let precioFinal = precioNuevo;
+        let accionTomada = "usar_nuevo";
+        
+        if (decisiones.tipo_global === 'usar_anterior' && precioAnterior) {
+          precioFinal = precioAnterior;
+          accionTomada = "usar_anterior";
+        } else if (decisiones.tipo_global === 'promediar' && precioAnterior) {
+          precioFinal = (precioNuevo + precioAnterior) / 2;
+          accionTomada = "promediar";
+        }
+
+        return {
+          session_id: sessionId,
+          historial_id: r.id,
+          codigo_barras: r.codigo_barras,
+          cod_ref: r.cod_ref,
+          accion_tomada: accionTomada,
+          precio_sistema_unitario: precioAnterior,
+          precio_calculado_unitario: precioNuevo,
+          precio_final_aprobado: precioFinal,
+          observaciones: decisiones.observaciones_global || null,
+          usuario_revisor: "revisor",
+          fecha_decision: new Date().toISOString(),
+          sucursal: "Principal"
+        };
+      });
+
+      // Guardar en la tabla decisiones_comparacion
       const { error } = await supabase
-        .from("revision_lineas")
+        .from("decisiones_comparacion")
         .upsert(rows, { onConflict: "session_id,historial_id" });
+      
       if (error) throw error;
-      alert(`Se guardaron ${rows.length} decisiones.`);
-      if (typeof cargarDecisionesDeSesion === "function") {
-        await cargarDecisionesDeSesion();
+
+      // Actualizar precios_sistema con los precios finales aprobados
+      const preciosParaActualizar = rows
+        .filter(r => r.codigo_barras || r.cod_ref)
+        .map(r => {
+          const producto = productosRevision.find(p => p.id === r.historial_id);
+          return {
+            codigo_barras: r.codigo_barras,
+            cod_ref: r.cod_ref,
+            precio_caja: r.precio_final_aprobado * (producto?.unidades_por_caja || 1),
+            updated_at: new Date().toISOString()
+          };
+        });
+
+      if (preciosParaActualizar.length > 0) {
+        const { error: errorPrecios } = await supabase
+          .from("precios_sistema")
+          .upsert(preciosParaActualizar, { onConflict: "codigo_barras,cod_ref" });
+        
+        if (errorPrecios) console.error("Error actualizando precios_sistema:", errorPrecios);
       }
+
+      alert(`Decisión global aplicada a ${rows.length} productos. Precios actualizados en el sistema.`);
+      
+      // Limpiar decisiones y recargar
+      setDecisiones({});
+      await cargarDecisionesDeSesion();
+      
     } catch (e) {
       console.error("guardarTodasLasDecisiones() error:", e);
-      alert("No se pudieron guardar todas las decisiones.");
+      alert("No se pudieron guardar las decisiones.");
     }
   }
 
@@ -888,6 +940,7 @@ async function finalizarSesion() {
   async function abrirSesionParaRevision(sesion) {
     try {
       setSesionEnRevision(sesion);
+      
       // 1) Cargar líneas de la sesión
       const { data: filas, error } = await supabase
         .from('historial_calculos')
@@ -897,32 +950,30 @@ async function finalizarSesion() {
       if (error) throw error;
       setProductosRevision(filas || []);
 
-      // 2) (Opcional) Cargar precios "oficiales" si tienes tabla precios_sistema
-      const cods = (filas || []).flatMap(r => [r.codigo_barras, r.cod_ref]).filter(Boolean);
-      if (cods.length) {
-        const { data: ps, error: e2 } = await supabase
-          .from('precios_sistema')
-          .select('*')
-          .in('codigo_barras', cods);
-        if (!e2 && ps) {
-          const byCode = {};
-          for (const row of ps) {
-            if (row.codigo_barras) byCode[row.codigo_barras] = row;
-            if (row.cod_ref) byCode[row.cod_ref] = row;
-          }
-          setPreciosSistema(byCode);
-        } else {
-          setPreciosSistema({});
+      // 2) Cargar todos los precios del sistema para comparación
+      const { data: ps, error: e2 } = await supabase
+        .from('precios_sistema')
+        .select('*');
+      
+      if (!e2 && ps) {
+        const byCode = {};
+        for (const row of ps) {
+          if (row.codigo_barras) byCode[row.codigo_barras] = row;
+          if (row.cod_ref) byCode[row.cod_ref] = row;
         }
+        setPreciosSistema(byCode);
       } else {
         setPreciosSistema({});
       }
+      
+      // 3) Limpiar decisiones previas
       setDecisiones({});
+      
     } catch (err) {
       console.error('Error abriendo sesión en revisión:', err);
+      alert('No se pudo cargar la sesión para revisión.');
     }
   }
-
   // 13.2. Calculadora de diferencias porcentuales para comparación de precios
   function diffPct(a, b) {
     const A = Number(a), B = Number(b);
@@ -1000,109 +1051,117 @@ async function finalizarSesion() {
     // Indicar que se está procesando
     setProcesandoRegistro(prev => new Set([...prev, p.id]));
 
-    // ---- 1) SAFETY: obtener nombre de producto de forma tolerante ----
-    const nombreProducto =
-      (p?.producto ?? p?.descripcion ?? p?.nombre ?? p?.descripcion_producto ?? p?.producto_nombre ?? p?.nombre_producto ?? p?.titulo ?? "").toString().trim() ||
-      "SIN_NOMBRE"; // fallback para cumplir NOT NULL
-
-    // ---- 2) Leer entradas del usuario ----
+    // ---- 1) Obtener datos calculados actuales ----
     const entered = costosIngresados[p.id] || {};
+    const ov = overrides[p.id] || {};
     const upc = Number.isFinite(p.unidades_por_caja) && p.unidades_por_caja > 0 ? Number(p.unidades_por_caja) : 1;
 
-    // Validaciones ligeras
+    // Costo base
+    const baseC = isFinite(entered.caja) ? Number(entered.caja) : p.costo_caja ?? 0;
+    const baseU = upc > 0 ? baseC / upc : baseC;
+
+    // Descuentos e incremento (con overrides)
+    const d1 = ov.d1 ?? p.desc1_pct ?? 0;
+    const d2 = ov.d2 ?? p.desc2_pct ?? 0;
+    const inc = ov.inc ?? p.incremento_pct ?? 0;
+
+    // Cálculos finales
+    const netoC = aplicarDescuentosProveedor(baseC, d1, d2);
+    const netoU = aplicarDescuentosProveedor(baseU, d1, d2);
+    const finalC = netoC * (1 + inc);
+    const finalU = netoU * (1 + inc);
+
+    // ---- 2) Validaciones ----
+    if (baseC <= 0) {
+      setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
+      alert("Ingresa un costo por caja válido para registrar.");
+      return;
+    }
+
     if (entered.cantidad_cajas !== undefined && entered.cantidad_cajas !== "" && Number(entered.cantidad_cajas) < 0) {
       setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
       alert("La cantidad de cajas no puede ser negativa.");
       return;
     }
-    if (entered.lote && entered.lote.length > 40) {
-      setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
-      alert("El código de lote es demasiado largo (máx. 40).");
-      return;
-    }
-    if (entered.fecha_vencimiento) {
-      const ok = /^\d{4}-\d{2}-\d{2}$/.test(entered.fecha_vencimiento);
-      if (!ok) {
-        setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
-        alert("La fecha de vencimiento debe tener formato YYYY-MM-DD.");
-        return;
-      }
-    }
 
-    // ---- 3) Normalizaciones: "" -> null, numéricos seguros ----
-    const cajas = (entered.cantidad_cajas === "" || entered.cantidad_cajas === undefined)
-      ? 0
-      : Number(entered.cantidad_cajas) || 0;
-
-    const cantidadUnidades = cajas * (Number.isFinite(upc) && upc > 0 ? upc : 1);
-
+    // ---- 3) Preparar datos para inserción ----
+    const nombreProducto = (p?.producto ?? p?.descripcion ?? p?.nombre ?? "").toString().trim() || "SIN_NOMBRE";
+    
+    const cajas = (entered.cantidad_cajas === "" || entered.cantidad_cajas === undefined) ? 0 : Number(entered.cantidad_cajas) || 0;
+    const cantidadUnidades = cajas * upc;
+    
     const loteVal = (entered.lote ?? "").toString().trim() || null;
     const fechaVtoVal = (entered.fecha_vencimiento ?? "").toString().trim() || null;
 
-    const costoCaja = Number(p.costo_caja ?? p.costo ?? 0) || 0;
-    const desc1 = Number(p.desc1_pct ?? 0) || 0;
-    const desc2 = Number(p.desc2_pct ?? 0) || 0;
-    const incPct = Number(p.incremento_pct ?? 0) || 0;
-    const costoFinalCaja = Number(p.costo_final_caja ?? p["costo final"] ?? 0) || 0;
-    const precioFinalUnit = Number(p.precio_final_unitario ?? 0) || 0;
-
-    // ---- 4) Payload listo para BD (sin strings vacíos) ----
     const row = {
       session_id: sesionActual.id,
-      producto: nombreProducto,                      // <-- NOT NULL asegurado
-      proveedor: (p.proveedor ?? p.marca ?? "").toString().trim() || null,
-      linea: (p.linea ?? p.categoria ?? "").toString().trim() || null,
+      producto: nombreProducto,
+      proveedor: (p.proveedor ?? "").toString().trim() || null,
+      linea: (p.linea ?? "").toString().trim() || null,
       codigo_barras: p.codigo_barras || null,
       cod_ref: p.cod_ref || null,
       unidades_por_caja: upc,
-      costo_caja: costoCaja,
-      desc1_pct: desc1,
-      desc2_pct: desc2,
-      incremento_pct: incPct,
-      costo_final_caja: costoFinalCaja,
-      precio_final_unitario: precioFinalUnit,
-
-      // Nuevos campos (fase 1)
+      costo_caja: baseC,
+      desc1_pct: d1,
+      desc2_pct: d2,
+      incremento_pct: inc,
+      costo_final_caja: netoC,
+      precio_final_caja: finalC,
+      precio_final_unitario: finalU,
       cantidad_cajas: cajas,
       cantidad_unidades: cantidadUnidades,
       lote: loteVal,
       fecha_vencimiento: fechaVtoVal,
-
-      // Estado para revisión
+      parametros_manual: ov.d1 != null || ov.d2 != null || ov.inc != null,
       estado: "pendiente_revision",
     };
 
-    // ---- 5) Insert en Supabase ----
+    // ---- 4) Insert en Supabase ----
     const { error: errIns } = await supabase.from("historial_calculos").insert(row);
 
     if (errIns) {
-      console.error("Error insertando en historial_calculos:", {
-        code: errIns.code,
-        message: errIns.message,
-        details: errIns.details,
-        hint: errIns.hint,
-      });
+      console.error("Error insertando en historial_calculos:", errIns);
       setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
       alert("No se pudo registrar en el historial.");
       return;
     }
 
-    // ---- 6) Refresco local y limpieza de inputs ----
-    setBitacora((prev) => [
-      ...prev,
-      { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...row },
-    ]);
+    // ---- 5) Actualizar estado local con datos correctos ----
+    const bitacoraItem = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      fecha: new Date().toISOString(),
+      producto: nombreProducto,
+      proveedor: row.proveedor,
+      linea: row.linea,
+      codigo_barras: row.codigo_barras,
+      cod_ref: row.cod_ref,
+      costo: baseC,
+      costo_caja_ingresado: baseC,
+      "costo final": netoC,
+      costo_final_caja: netoC,
+      precio: finalC,
+      "precio final": finalC,
+      precio_final_caja: finalC,
+      precio_final_unitario: finalU,
+      cantidad_cajas: cajas,
+      cantidad_unidades: cantidadUnidades,
+      lote: loteVal,
+      fecha_vencimiento: fechaVtoVal,
+      unidades_por_caja: upc,
+    };
+
+    setBitacora((prev) => [...prev, bitacoraItem]);
     
+    // ---- 6) Limpiar inputs ----
     setCostosIngresados((prev) => ({
       ...prev,
       [p.id]: { ...(prev[p.id] || {}), cantidad_cajas: "", lote: "", fecha_vencimiento: "" },
     }));
 
-    // ---- 7) Feedback visual exitoso ----
+    // ---- 7) Feedback visual ----
     setProcesandoRegistro(prev => { const next = new Set(prev); next.delete(p.id); return next; });
     setRegistrosProcesados(prev => new Set([...prev, p.id]));
     
-    // Limpiar el feedback después de 3 segundos
     setTimeout(() => {
       setRegistrosProcesados(prev => { const next = new Set(prev); next.delete(p.id); return next; });
     }, 3000);
@@ -1620,24 +1679,9 @@ async function finalizarSesion() {
 
                 {/* Controles adicionales de vista */}
                 <div className="md:col-span-12 flex flex-wrap gap-3 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                      "rounded-xl px-4 py-2 font-semibold transition-all duration-300 hover:scale-105",
-                      showNetos
-                        ? isDark
-                          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30"
-                          : "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200"
-                        : isDark
-                        ? "bg-white/10 border-white/20 hover:bg-white/15"
-                        : "bg-white border-slate-300 hover:bg-slate-50"
-                    )}
-                    onClick={() => setShowNetos((v) => !v)}
-                  >
-                    <ListFilter className="h-4 w-4 mr-2" />
-                    {showNetos ? "Ocultar Netos" : "Ver Netos"}
-                  </Button>
+                  <div className={cn("text-xs px-3 py-2 rounded-xl", isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-700")}>
+                    ✨ Los costos finales se muestran automáticamente
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -2020,35 +2064,39 @@ async function finalizarSesion() {
                           </div>
                         </div>
 
-                        {/* Resultados compactos en dos columnas */}
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Caja */}
+                        {/* Resultados compactos en tres columnas - con costo final */}
+                        <div className="grid grid-cols-3 gap-3">
+                          {/* Costo Final */}
+                          <div className={cn(
+                            "p-3 rounded-xl border-2 text-center",
+                            isDark ? "bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-400/30" : "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300"
+                          )}>
+                            <div className="text-xs font-bold mb-1">💰 Costo Final</div>
+                            <div className={cn("text-xs opacity-80", isDark ? "text-amber-300" : "text-amber-600")}>
+                              Caja: Bs {nf.format(netoC)}
+                            </div>
+                            <div className={cn("font-bold text-sm tracking-tight", isDark ? "text-amber-300" : "text-amber-600")}>
+                              Unit: Bs {nf.format(netoU)}
+                            </div>
+                          </div>
+
+                          {/* Precio Caja */}
                           <div className={cn(
                             "p-3 rounded-xl border-2 text-center",
                             isDark ? "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-400/30" : "bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-300"
                           )}>
                             <div className="text-xs font-bold mb-1">📦 Precio Caja</div>
-                            {showNetos && (
-                              <div className={cn("text-xs opacity-80", isDark ? "text-amber-300" : "text-amber-600")}>
-                                Neto: Bs {nf.format(netoC)}
-                              </div>
-                            )}
                             <div className={cn("font-bold text-lg tracking-tight", isDark ? "text-emerald-300" : "text-emerald-600")}>
                               Bs {nf.format(finalC)}
                             </div>
                           </div>
 
-                          {/* Unitario */}
+                          {/* Precio Unitario */}
                           <div className={cn(
                             "p-3 rounded-xl border-2 text-center",
                             isDark ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-400/30" : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300"
                           )}>
                             <div className="text-xs font-bold mb-1">💊 Precio Unit.</div>
-                            {showNetos && (
-                              <div className={cn("text-xs opacity-80", isDark ? "text-amber-300" : "text-amber-600")}>
-                                Neto: Bs {nf.format(netoU)}
-                              </div>
-                            )}
                             <div className={cn("font-bold text-lg tracking-tight", isDark ? "text-blue-300" : "text-blue-600")}>
                               Bs {nf.format(finalU)}
                             </div>
@@ -2183,20 +2231,45 @@ async function finalizarSesion() {
                             <div className={cn("text-xs opacity-80 mb-2", isDark ? "text-slate-400" : "text-slate-500")}>
                               🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"}
                             </div>
+
+                            {/* Información de logística */}
+                            <div className="grid grid-cols-3 gap-1 text-xs mb-2">
+                              <div className={cn("px-1 py-1 rounded", isDark ? "bg-cyan-500/20" : "bg-cyan-50")}>
+                                <div className="opacity-80">📦 Cajas</div>
+                                <div className="font-bold">{r.cantidad_cajas || 0}</div>
+                              </div>
+                              <div className={cn("px-1 py-1 rounded", isDark ? "bg-purple-500/20" : "bg-purple-50")}>
+                                <div className="opacity-80">🏷️ Lote</div>
+                                <div className="font-bold text-xs">{r.lote || "-"}</div>
+                              </div>
+                              <div className={cn("px-1 py-1 rounded", isDark ? "bg-orange-500/20" : "bg-orange-50")}>
+                                <div className="opacity-80">📅 Venc</div>
+                                <div className="font-bold text-xs">{r.fecha_vencimiento ? new Date(r.fecha_vencimiento).toLocaleDateString("es-BO") : "-"}</div>
+                              </div>
+                            </div>
                             
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className={cn("px-2 py-1 rounded-lg", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
-                                <div className="opacity-80">💰 Costo</div>
-                                <div className="font-bold">Bs {nf.format(r.costo ?? r.costo_caja_ingresado ?? 0)}</div>
+                            {/* Precios principales */}
+                            <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                              <div className={cn("px-2 py-1 rounded-lg", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                                <div className="opacity-80">💰 C.Final</div>
+                                <div className="font-bold">Bs {nf.format(r.costo_final_caja ?? r["costo final"] ?? 0)}</div>
                               </div>
                               <div className={cn("px-2 py-1 rounded-lg", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
-                                <div className="opacity-80">🎯 Final</div>
-                                <div className="font-bold text-emerald-600">Bs {nf.format(r.precio ?? r["precio final"] ?? 0)}</div>
+                                <div className="opacity-80">🎯 P.Final</div>
+                                <div className="font-bold text-emerald-600">Bs {nf.format(r.precio_final_caja ?? r["precio final"] ?? 0)}</div>
+                              </div>
+                            </div>
+
+                            {/* Precio unitario destacado */}
+                            <div className={cn("px-2 py-1 rounded-lg text-center", isDark ? "bg-blue-500/30 border border-blue-400/50" : "bg-blue-100 border border-blue-300")}>
+                              <div className="opacity-90 text-xs">💊 Precio Unitario</div>
+                              <div className={cn("font-bold", isDark ? "text-blue-200" : "text-blue-700")}>
+                                Bs {nf.format(r.precio_final_unitario ?? 0)}
                               </div>
                             </div>
 
                             <div className={cn("text-xs mt-2 opacity-70", isDark ? "text-slate-400" : "text-slate-500")}>
-                              📅 {new Date(r.fecha).toLocaleTimeString()}
+                              📅 {r.fecha ? new Date(r.fecha).toLocaleString("es-BO") : "Sin fecha"}
                             </div>
                           </div>
                         </div>
@@ -2277,27 +2350,26 @@ async function finalizarSesion() {
 
             {/* Layout de dos columnas para revisión */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Columna izquierda: Lista de sesiones pendientes */}
+              {/* Columna izquierda: Lista de sesiones/facturas pendientes */}
               <div className="lg:col-span-4">
                 <Card className={cardClass}>
                   <CardHeader className="pb-2">
                     <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
-                      📦 Sesiones pendientes ({sesionesPendientes.length})
+                      🧾 Facturas/Sesiones ({sesionesPendientes.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {sesionesPendientes.length === 0 && (
                       <div className={cn("text-sm py-8 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
-                        No hay sesiones para revisar.
+                        No hay facturas para revisar.
                       </div>
                     )}
                     <div className="space-y-2">
                       {sesionesPendientes.map((s) => (
-                        <button
+                        <div
                           key={s.id}
-                          onClick={() => abrirSesionParaRevision(s)}
                           className={cn(
-                            "w-full text-left p-3 rounded-xl border-2 transition-all duration-200",
+                            "p-3 rounded-xl border-2 transition-all duration-200 group",
                             sesionEnRevision?.id === s.id
                               ? (isDark
                                   ? "bg-emerald-500/20 border-emerald-400/40"
@@ -2307,96 +2379,207 @@ async function finalizarSesion() {
                                   : "bg-white border-slate-200 hover:bg-slate-50")
                           )}
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                            <div className="font-semibold">{s.nombre}</div>
-                              <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
-                                Finalizada: {s.fecha_finalizacion ? new Date(s.fecha_finalizacion).toLocaleString() : "-"}
+                          <div className="flex items-start justify-between gap-2">
+                            <button
+                              onClick={() => abrirSesionParaRevision(s)}
+                              className="flex-1 text-left"
+                            >
+                              <div className="font-semibold mb-1">{s.nombre}</div>
+                              <div className={cn("text-xs mb-1", isDark ? "text-slate-400" : "text-slate-500")}>
+                                📅 {s.fecha_finalizacion ? new Date(s.fecha_finalizacion).toLocaleString("es-BO") : "En proceso"}
                               </div>
-                            </div>
-                            <div className={cn(
-                              "text-xs px-2 py-1 rounded-lg",
-                              isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
-                            )}>
-                              {s.total_productos ?? 0} ítems
-                            </div>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "text-xs px-2 py-1 rounded-lg",
+                                  isDark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"
+                                )}>
+                                  📦 {s.total_productos ?? 0} productos
+                                </span>
+                                <span className={cn(
+                                  "text-xs px-2 py-1 rounded-lg",
+                                  s.estado === "enviada_revision" 
+                                    ? (isDark ? "bg-amber-500/20 text-amber-300" : "bg-amber-100 text-amber-700")
+                                    : (isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-700")
+                                )}>
+                                  {s.estado === "enviada_revision" ? "⏳ Pendiente" : "✅ Revisada"}
+                                </span>
+                              </div>
+                            </button>
+                            
+                            <button
+                              onClick={async () => {
+                                if (window.confirm(`¿Eliminar la sesión "${s.nombre}"? Esta acción no se puede deshacer.`)) {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('sesiones_trabajo')
+                                      .delete()
+                                      .eq('id', s.id);
+                                    if (error) throw error;
+                                    if (sesionEnRevision?.id === s.id) {
+                                      setSesionEnRevision(null);
+                                      setProductosRevision([]);
+                                    }
+                                    cargarSesionesPendientes();
+                                  } catch (e) {
+                                    console.error(e);
+                                    alert('No se pudo eliminar la sesión.');
+                                  }
+                                }
+                              }}
+                              className={cn(
+                                "p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity",
+                                isDark ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-100 text-red-600"
+                              )}
+                              title="Eliminar sesión"
+                            >
+                              🗑️
+                            </button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Columna derecha: Detalle de la sesión seleccionada */}
+              {/* Columna derecha: Detalle de la factura seleccionada */}
               <div className="lg:col-span-8">
                 {!sesionEnRevision ? (
                   <Card className={cardClass}>
                     <CardContent className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
                       <div className="text-6xl mb-4">👈</div>
-                      Selecciona una sesión para revisar.
+                      Selecciona una factura para revisar.
                     </CardContent>
                   </Card>
                 ) : (
                   <Card className={cardClass}>
-                    {/* Encabezado del detalle de sesión (con Guardar todo) */}
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
+                    {/* Encabezado con controles globales */}
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between mb-4">
                         <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
-                          Sesión: {sesionEnRevision.nombre}
+                          🧾 {sesionEnRevision.nombre}
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           <Button
-                            variant="outline"
+                            onClick={exportarDecisionesExcel}
                             className={cn(
-                              "rounded-xl",
-                              isDark ? "bg-white/10 border-white/20 text-slate-100" : "bg-white border-slate-300 text-slate-800"
+                              "rounded-xl px-3 py-2",
+                              isDark ? "bg-blue-600/80 hover:bg-blue-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
                             )}
-                            onClick={guardarTodasLasDecisiones}
-                            title="Guardar todas las decisiones de esta sesión"
                           >
-                            💾 Guardar todo
+                            📊 Exportar
                           </Button>
                           <Button
-                            variant="outline"
-                            className={cn(
-                              "rounded-xl",
-                              isDark ? "bg-white/10 border-white/20 text-slate-100" : "bg-white border-slate-300 text-slate-800"
-                            )}
                             onClick={finalizarRevisionActual}
-                            title="Marcar esta sesión como revisada"
+                            className={cn(
+                              "rounded-xl px-3 py-2",
+                              isDark ? "bg-emerald-600/80 hover:bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            )}
                           >
-                            ✅ Finalizar revisión
+                            ✅ Finalizar
                           </Button>
                         </div>
                       </div>
+
+                      {/* Panel de decisión global */}
+                      {productosRevision.length > 0 && (
+                        <div className={cn(
+                          "p-4 rounded-2xl border-2",
+                          isDark ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-400/30" : "bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-300"
+                        )}>
+                          <div className="text-sm font-bold mb-3">⚖️ Decisión Global para toda la Factura</div>
+                          <div className="flex items-center justify-center gap-4">
+                            <button
+                              onClick={() => setDecisiones({ tipo_global: 'usar_anterior' })}
+                              className={cn(
+                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                decisiones.tipo_global === 'usar_anterior'
+                                  ? (isDark ? "bg-blue-500/30 border-blue-400" : "bg-blue-100 border-blue-400")
+                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                              )}
+                            >
+                              <div className="text-2xl">⬇️</div>
+                              <div className="text-xs font-semibold mt-1">Usar Anterior</div>
+                            </button>
+                            
+                            <button
+                              onClick={() => setDecisiones({ tipo_global: 'usar_nuevo' })}
+                              className={cn(
+                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                decisiones.tipo_global === 'usar_nuevo'
+                                  ? (isDark ? "bg-emerald-500/30 border-emerald-400" : "bg-emerald-100 border-emerald-400")
+                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                              )}
+                            >
+                              <div className="text-2xl">⬆️</div>
+                              <div className="text-xs font-semibold mt-1">Usar Nuevo</div>
+                            </button>
+                            
+                            <button
+                              onClick={() => setDecisiones({ tipo_global: 'promediar' })}
+                              className={cn(
+                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                decisiones.tipo_global === 'promediar'
+                                  ? (isDark ? "bg-amber-500/30 border-amber-400" : "bg-amber-100 border-amber-400")
+                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                              )}
+                            >
+                              <div className="text-2xl">⚖️</div>
+                              <div className="text-xs font-semibold mt-1">Promediar</div>
+                            </button>
+                          </div>
+                          
+                          {decisiones.tipo_global && (
+                            <div className="mt-4 flex items-center gap-3">
+                              <input
+                                type="text"
+                                placeholder="Observaciones de la decisión global..."
+                                className={cn(
+                                  "flex-1 h-10 px-3 rounded-xl bg-transparent border",
+                                  isDark ? "border-white/20" : "border-slate-300"
+                                )}
+                                value={decisiones.observaciones_global || ""}
+                                onChange={(e) => setDecisiones(prev => ({...prev, observaciones_global: e.target.value}))}
+                              />
+                              <Button
+                                onClick={async () => {
+                                  await guardarTodasLasDecisiones();
+                                }}
+                                className={cn(
+                                  "px-4 py-2 rounded-xl font-bold",
+                                  isDark ? "bg-purple-600/80 hover:bg-purple-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                                )}
+                              >
+                                💾 Aplicar Decisión Global
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </CardHeader>
 
                     <CardContent className="space-y-3">
                       {productosRevision.length === 0 ? (
                         <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
-                          Cargando líneas…
+                          Cargando productos...
                         </div>
                       ) : (
                         <div className="space-y-3">
                           {productosRevision.map((r) => {
-                            // Comparación, badges y controles
+                            // Comparación de precios
                             const code = r.codigo_barras || r.cod_ref;
                             const ps = preciosSistema[code];
-                            const precioCalc = r.precio_final_caja ?? r["precio final"] ?? 0;
-                            const precioOficial = ps?.precio_caja ?? null;
-                            const d = precioOficial != null ? diffPct(precioCalc, precioOficial) : null;
+                            const precioNuevo = r.precio_final_unitario ?? 0;
+                            const precioAnterior = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+                            
+                            let precioFinal = precioNuevo;
+                            if (decisiones.tipo_global === 'usar_anterior' && precioAnterior) {
+                              precioFinal = precioAnterior;
+                            } else if (decisiones.tipo_global === 'promediar' && precioAnterior) {
+                              precioFinal = (precioNuevo + precioAnterior) / 2;
+                            }
 
-                            const badge =
-                              d == null
-                                ? { text: "s/ referencia", cls: isDark ? "bg-white/10" : "bg-slate-100" }
-                                : d > 0.5
-                                ? { text: `▲ ${d.toFixed(2)}%`, cls: isDark ? "bg-emerald-500/20" : "bg-emerald-100" }
-                                : d < -0.5
-                                ? { text: `▼ ${d.toFixed(2)}%`, cls: isDark ? "bg-rose-500/20" : "bg-rose-100" }
-                                : { text: `= ${d.toFixed(2)}%`, cls: isDark ? "bg-amber-500/20" : "bg-amber-100" };
-
-                            const dec = decisiones[r.id] || {};
+                            const diferencia = precioAnterior ? ((precioNuevo - precioAnterior) / precioAnterior * 100) : null;
 
                             return (
                               <div
@@ -2406,88 +2589,72 @@ async function finalizarSesion() {
                                   isDark ? "bg-white/5 border-white/15" : "bg-white border-slate-200"
                                 )}
                               >
-                                {/* Encabezado del item */}
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="font-semibold text-base">{r.producto}</div>
-                                    <div className={cn("text-xs mt-1", isDark ? "text-slate-400" : "text-slate-500")}>
-                                      🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 📊 {r.codigo_barras || r.cod_ref || "-"}
+                                {/* Información del producto */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <div>
+                                    <div className="font-semibold">{r.producto}</div>
+                                    <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
+                                      🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 📦 {r.cantidad_cajas || 0} cajas · 📊 {r.codigo_barras || r.cod_ref || "-"}
                                     </div>
                                   </div>
-                                  <span className={cn("text-xs px-2 py-1 rounded-lg font-semibold", badge.cls)}>
-                                    {badge.text}
-                                  </span>
+                                  {diferencia !== null && (
+                                    <span className={cn(
+                                      "text-xs px-2 py-1 rounded-lg font-bold",
+                                      diferencia > 5 
+                                        ? (isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-700")
+                                        : diferencia < -5
+                                        ? (isDark ? "bg-red-500/20 text-red-300" : "bg-red-100 text-red-700")
+                                        : (isDark ? "bg-amber-500/20 text-amber-300" : "bg-amber-100 text-amber-700")
+                                    )}>
+                                      {diferencia > 0 ? "📈" : diferencia < 0 ? "📉" : "📊"} {diferencia.toFixed(1)}%
+                                    </span>
+                                  )}
                                 </div>
 
-                                {/* Grid de comparación y edición */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                                  <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
-                                    <div className="text-xs opacity-80 mb-1">Precio calculado</div>
-                                    <div className="font-bold">Bs {nf.format(precioCalc)}</div>
-                                  </div>
-                                  <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
-                                    <div className="text-xs opacity-80 mb-1">Precio sistema</div>
+                                {/* Comparación de precios unitarios */}
+                                <div className="grid grid-cols-4 gap-3">
+                                  <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                                    <div className="text-xs opacity-80 mb-1">💰 Precio Anterior</div>
                                     <div className="font-bold">
-                                      {precioOficial != null ? `Bs ${nf.format(precioOficial)}` : "—"}
+                                      {precioAnterior ? `Bs ${nf.format(precioAnterior)}` : "—"}
                                     </div>
-                                  </div>
-                                  <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
-                                    <div className="text-xs opacity-80 mb-1">Decisión</div>
-                                    <Select
-                                      value={dec.tipo || ""}
-                                      onValueChange={(v) => setDecision(r.id, { tipo: v })}
-                                    >
-                                      <SelectTrigger className="h-9 rounded-xl">
-                                        <SelectValue placeholder="Selecciona…" />
-                                      </SelectTrigger>
-                                      <SelectContent className={isDark ? "bg-slate-900 text-slate-100" : ""}>
-                                        <SelectItem value="aprobado">Aprobar</SelectItem>
-                                        <SelectItem value="rechazado">Rechazar</SelectItem>
-                                        <SelectItem value="ajustar">Ajustar</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className={cn("px-3 py-2 rounded-xl", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
-                                    <div className="text-xs opacity-80 mb-1">Precio sugerido</div>
                                     <input
                                       type="number"
                                       step="0.01"
+                                      placeholder="Editable"
                                       className={cn(
-                                        "w-full h-9 px-3 rounded-xl bg-transparent border",
+                                        "w-full mt-1 h-7 px-2 rounded text-xs bg-transparent border",
                                         isDark ? "border-white/20" : "border-slate-300"
                                       )}
-                                      onChange={(e) => setDecision(r.id, { precio_sugerido: e.target.value })}
-                                      value={dec.precio_sugerido || ""}
-                                      placeholder="Bs 0.00"
+                                      value={decisiones[`precio_anterior_${r.id}`] || ""}
+                                      onChange={(e) => setDecisiones(prev => ({
+                                        ...prev,
+                                        [`precio_anterior_${r.id}`]: e.target.value
+                                      }))}
                                     />
                                   </div>
-                                </div>
-
-                                {/* Campo de comentarios y guardado individual */}
-                                <div className="mt-3 flex flex-col md:flex-row gap-3">
-                                  <input
-                                    type="text"
-                                    className={cn(
-                                      "flex-1 h-9 px-3 rounded-xl bg-transparent border",
-                                      isDark ? "border-white/20" : "border-slate-300"
-                                    )}
-                                    placeholder="Motivo / comentario (opcional)…"
-                                    value={dec.motivo || ""}
-                                    onChange={(e) => setDecision(r.id, { motivo: e.target.value })}
-                                  />
-                                  <Button
-                                    size="sm"
-                                    className={cn(
-                                      "px-4 rounded-xl font-semibold",
-                                      isDark
-                                        ? "bg-emerald-600/80 hover:bg-emerald-600 text-white"
-                                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    )}
-                                    onClick={() => guardarDecisionLinea(r)}
-                                    title="Guardar solo esta decisión"
-                                  >
-                                    💾 Guardar
-                                  </Button>
+                                  
+                                  <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                                    <div className="text-xs opacity-80 mb-1">🆕 Precio Nuevo</div>
+                                    <div className="font-bold text-blue-600">Bs {nf.format(precioNuevo)}</div>
+                                  </div>
+                                  
+                                  <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                                    <div className="text-xs opacity-80 mb-1">⚖️ Promedio</div>
+                                    <div className="font-bold">
+                                      {precioAnterior ? `Bs ${nf.format((precioNuevo + precioAnterior) / 2)}` : "—"}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className={cn(
+                                    "p-3 text-center rounded-xl border-2",
+                                    isDark ? "bg-emerald-500/20 border-emerald-400/50" : "bg-emerald-50 border-emerald-300"
+                                  )}>
+                                    <div className="text-xs opacity-80 mb-1">🎯 Precio Final</div>
+                                    <div className={cn("font-bold text-lg", isDark ? "text-emerald-300" : "text-emerald-600")}>
+                                      Bs {nf.format(precioFinal)}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             );
