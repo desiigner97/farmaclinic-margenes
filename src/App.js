@@ -625,13 +625,19 @@ export default function AppMargenes() {
         
         const decision = decisiones[`decision_${r.id}`] || 'usar_nuevo';
         let precioFinal = precioNuevo;
+        let accionParaBD = 'usar_nuevo'; // valor por defecto
         
         if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
+          accionParaBD = 'anterior';
         } else if (decision === 'promediar' && precioAnterior) {
           precioFinal = (precioNuevo + precioAnterior) / 2;
+          accionParaBD = 'promedio';
         } else if (decision === 'reprocesar') {
-          precioFinal = precioNuevo; // Mantiene el precio nuevo pero marca para reproceso
+          precioFinal = precioNuevo;
+          accionParaBD = 'reprocesar';
+        } else {
+          accionParaBD = 'nuevo';
         }
 
         return {
@@ -639,7 +645,7 @@ export default function AppMargenes() {
           historial_id: r.id,
           codigo_barras: r.codigo_barras,
           cod_ref: r.cod_ref,
-          accion_tomada: decision,
+          accion_tomada: accionParaBD,
           precio_sistema_unitario: precioAnterior,
           precio_calculado_unitario: precioNuevo,
           precio_final_aprobado: precioFinal,
