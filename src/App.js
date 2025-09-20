@@ -659,10 +659,12 @@ export default function AppMargenes() {
         };
       });
 
-      // Guardar en la tabla decisiones (sin restricciones conflictivas)
+// Guardar en la tabla decisiones (sin restricciones conflictivas)
       const rowsDecisiones = decisionesTomadas.map(r => {
         const decision = decisiones[`decision_${r.id}`];
-        const precioAnteriorSistema = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+        const code = r.codigo_barras || r.cod_ref;
+        const precioSistema = preciosSistema[code];
+        const precioAnteriorSistema = precioSistema?.precio_caja ? (precioSistema.precio_caja / (r.unidades_por_caja || 1)) : null;
         const precioAnteriorEditado = decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
         const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
         
