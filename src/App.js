@@ -606,29 +606,32 @@ export default function AppMargenes() {
         alert("No hay sesión en revisión.");
         return;
       }
-      
-      if (!decisiones.tipo_global) {
-        alert("Selecciona una decisión global primero.");
+
+      // Verificar que hay decisiones tomadas
+      const decisionesTomadas = productosRevision.filter(r => decisiones[`decision_${r.id}`]);
+      if (decisionesTomadas.length === 0) {
+        alert("Toma al menos una decisión antes de guardar.");
         return;
       }
 
-      // Preparar decisiones para todos los productos de la sesión
+      // Preparar decisiones individuales para cada producto
       const rows = productosRevision.map(r => {
         const code = r.codigo_barras || r.cod_ref;
         const ps = preciosSistema[code];
         const precioNuevo = r.precio_final_unitario ?? 0;
-        const precioAnterior = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : 
-                              decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
+        const precioAnteriorSistema = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+        const precioAnteriorEditado = decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
+        const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
         
+        const decision = decisiones[`decision_${r.id}`] || 'usar_nuevo';
         let precioFinal = precioNuevo;
-        let accionTomada = "usar_nuevo";
         
-        if (decisiones.tipo_global === 'usar_anterior' && precioAnterior) {
+        if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
-          accionTomada = "usar_anterior";
-        } else if (decisiones.tipo_global === 'promediar' && precioAnterior) {
+        } else if (decision === 'promediar' && precioAnterior) {
           precioFinal = (precioNuevo + precioAnterior) / 2;
-          accionTomada = "promediar";
+        } else if (decision === 'reprocesar') {
+          precioFinal = precioNuevo; // Mantiene el precio nuevo pero marca para reproceso
         }
 
         return {
@@ -636,11 +639,11 @@ export default function AppMargenes() {
           historial_id: r.id,
           codigo_barras: r.codigo_barras,
           cod_ref: r.cod_ref,
-          accion_tomada: accionTomada,
+          accion_tomada: decision,
           precio_sistema_unitario: precioAnterior,
           precio_calculado_unitario: precioNuevo,
           precio_final_aprobado: precioFinal,
-          observaciones: decisiones.observaciones_global || null,
+          observaciones: decisiones[`observacion_${r.id}`] || decisiones.observaciones_global || null,
           usuario_revisor: "revisor",
           fecha_decision: new Date().toISOString(),
           sucursal: "Principal"
@@ -654,9 +657,9 @@ export default function AppMargenes() {
       
       if (error) throw error;
 
-      // Actualizar precios_sistema con los precios finales aprobados
+      // Actualizar precios_sistema con los precios finales aprobados (excepto reprocesar)
       const preciosParaActualizar = rows
-        .filter(r => r.codigo_barras || r.cod_ref)
+        .filter(r => (r.codigo_barras || r.cod_ref) && r.accion_tomada !== 'reprocesar')
         .map(r => {
           const producto = productosRevision.find(p => p.id === r.historial_id);
           return {
@@ -675,7 +678,23 @@ export default function AppMargenes() {
         if (errorPrecios) console.error("Error actualizando precios_sistema:", errorPrecios);
       }
 
-      alert(`Decisión global aplicada a ${rows.length} productos. Precios actualizados en el sistema.`);
+      // Contar tipos de decisiones
+      const conteos = rows.reduce((acc, r) => {
+        acc[r.accion_tomada] = (acc[r.accion_tomada] || 0) + 1;
+        return acc;
+      }, {});
+
+      const resumen = Object.entries(conteos).map(([tipo, cantidad]) => {
+        const nombres = {
+          'usar_anterior': 'Usar Anterior',
+          'usar_nuevo': 'Usar Nuevo',
+          'promediar': 'Promediar',
+          'reprocesar': 'Reprocesar'
+        };
+        return `${nombres[tipo]}: ${cantidad}`;
+      }).join(', ');
+
+      alert(`Decisiones guardadas para ${rows.length} productos.\n${resumen}\nPrecios actualizados en el sistema.`);
       
       // Limpiar decisiones y recargar
       setDecisiones({});
@@ -2481,79 +2500,34 @@ async function finalizarSesion() {
                         </div>
                       </div>
 
-                      {/* Panel de decisión global */}
+                      {/* Panel de guardado global */}
                       {productosRevision.length > 0 && (
                         <div className={cn(
-                          "p-4 rounded-2xl border-2",
-                          isDark ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-400/30" : "bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-300"
+                          "p-4 rounded-2xl border-2 text-center",
+                          isDark ? "bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-400/30" : "bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-300"
                         )}>
-                          <div className="text-sm font-bold mb-3">⚖️ Decisión Global para toda la Factura</div>
-                          <div className="flex items-center justify-center gap-4">
-                            <button
-                              onClick={() => setDecisiones({ tipo_global: 'usar_anterior' })}
+                          <div className="text-sm font-bold mb-3">💾 Guardado de Decisiones</div>
+                          <div className="flex items-center justify-center gap-3">
+                            <input
+                              type="text"
+                              placeholder="Observaciones generales de la sesión..."
                               className={cn(
-                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
-                                decisiones.tipo_global === 'usar_anterior'
-                                  ? (isDark ? "bg-blue-500/30 border-blue-400" : "bg-blue-100 border-blue-400")
-                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                                "flex-1 h-10 px-3 rounded-xl bg-transparent border",
+                                isDark ? "border-white/20" : "border-slate-300"
+                              )}
+                              value={decisiones.observaciones_global || ""}
+                              onChange={(e) => setDecisiones(prev => ({...prev, observaciones_global: e.target.value}))}
+                            />
+                            <Button
+                              onClick={guardarTodasLasDecisiones}
+                              className={cn(
+                                "px-6 py-2 rounded-xl font-bold",
+                                isDark ? "bg-purple-600/80 hover:bg-purple-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
                               )}
                             >
-                              <div className="text-2xl">⬇️</div>
-                              <div className="text-xs font-semibold mt-1">Usar Anterior</div>
-                            </button>
-                            
-                            <button
-                              onClick={() => setDecisiones({ tipo_global: 'usar_nuevo' })}
-                              className={cn(
-                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
-                                decisiones.tipo_global === 'usar_nuevo'
-                                  ? (isDark ? "bg-emerald-500/30 border-emerald-400" : "bg-emerald-100 border-emerald-400")
-                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
-                              )}
-                            >
-                              <div className="text-2xl">⬆️</div>
-                              <div className="text-xs font-semibold mt-1">Usar Nuevo</div>
-                            </button>
-                            
-                            <button
-                              onClick={() => setDecisiones({ tipo_global: 'promediar' })}
-                              className={cn(
-                                "p-3 rounded-2xl border-2 transition-all hover:scale-105",
-                                decisiones.tipo_global === 'promediar'
-                                  ? (isDark ? "bg-amber-500/30 border-amber-400" : "bg-amber-100 border-amber-400")
-                                  : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
-                              )}
-                            >
-                              <div className="text-2xl">⚖️</div>
-                              <div className="text-xs font-semibold mt-1">Promediar</div>
-                            </button>
+                              💾 Guardar Todas las Decisiones
+                            </Button>
                           </div>
-                          
-                          {decisiones.tipo_global && (
-                            <div className="mt-4 flex items-center gap-3">
-                              <input
-                                type="text"
-                                placeholder="Observaciones de la decisión global..."
-                                className={cn(
-                                  "flex-1 h-10 px-3 rounded-xl bg-transparent border",
-                                  isDark ? "border-white/20" : "border-slate-300"
-                                )}
-                                value={decisiones.observaciones_global || ""}
-                                onChange={(e) => setDecisiones(prev => ({...prev, observaciones_global: e.target.value}))}
-                              />
-                              <Button
-                                onClick={async () => {
-                                  await guardarTodasLasDecisiones();
-                                }}
-                                className={cn(
-                                  "px-4 py-2 rounded-xl font-bold",
-                                  isDark ? "bg-purple-600/80 hover:bg-purple-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                                )}
-                              >
-                                💾 Aplicar Decisión Global
-                              </Button>
-                            </div>
-                          )}
                         </div>
                       )}
                     </CardHeader>
@@ -2564,18 +2538,23 @@ async function finalizarSesion() {
                           Cargando productos...
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {productosRevision.map((r) => {
-                            // Comparación de precios
+                            // Cálculos de precios
                             const code = r.codigo_barras || r.cod_ref;
                             const ps = preciosSistema[code];
                             const precioNuevo = r.precio_final_unitario ?? 0;
-                            const precioAnterior = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+                            const precioAnteriorSistema = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+                            const precioAnteriorEditado = decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
+                            const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
                             
+                            // Cálculo del precio final según decisión
+                            const decisionProducto = decisiones[`decision_${r.id}`];
                             let precioFinal = precioNuevo;
-                            if (decisiones.tipo_global === 'usar_anterior' && precioAnterior) {
+                            
+                            if (decisionProducto === 'usar_anterior' && precioAnterior) {
                               precioFinal = precioAnterior;
-                            } else if (decisiones.tipo_global === 'promediar' && precioAnterior) {
+                            } else if (decisionProducto === 'promediar' && precioAnterior) {
                               precioFinal = (precioNuevo + precioAnterior) / 2;
                             }
 
@@ -2585,37 +2564,70 @@ async function finalizarSesion() {
                               <div
                                 key={r.id}
                                 className={cn(
-                                  "p-4 rounded-2xl border-2",
+                                  "p-5 rounded-3xl border-2",
                                   isDark ? "bg-white/5 border-white/15" : "bg-white border-slate-200"
                                 )}
                               >
-                                {/* Información del producto */}
-                                <div className="flex items-center justify-between mb-3">
-                                  <div>
-                                    <div className="font-semibold">{r.producto}</div>
-                                    <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
-                                      🏢 {r.proveedor || "-"} · 🏷️ {r.linea || "-"} · 📦 {r.cantidad_cajas || 0} cajas · 📊 {r.codigo_barras || r.cod_ref || "-"}
+                                {/* Encabezado del producto con información completa */}
+                                <div className="flex items-start justify-between mb-4">
+                                  <div className="flex-1">
+                                    <div className="font-bold text-lg mb-2">{r.producto}</div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                                        <span className="opacity-80">🏢 Proveedor:</span>
+                                        <div className="font-semibold">{r.proveedor || "-"}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-purple-500/20" : "bg-purple-50")}>
+                                        <span className="opacity-80">🏷️ Línea:</span>
+                                        <div className="font-semibold">{r.linea || "-"}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-green-500/20" : "bg-green-50")}>
+                                        <span className="opacity-80">📦 Cajas:</span>
+                                        <div className="font-semibold">{r.cantidad_cajas || 0}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-cyan-500/20" : "bg-cyan-50")}>
+                                        <span className="opacity-80">💊 Unidades:</span>
+                                        <div className="font-semibold">{r.cantidad_unidades || 0}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                                        <span className="opacity-80">🏷️ Lote:</span>
+                                        <div className="font-semibold">{r.lote || "-"}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-red-500/20" : "bg-red-50")}>
+                                        <span className="opacity-80">📅 Vencimiento:</span>
+                                        <div className="font-semibold">{r.fecha_vencimiento ? new Date(r.fecha_vencimiento).toLocaleDateString("es-BO") : "-"}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                                        <span className="opacity-80">📊 Código Barras:</span>
+                                        <div className="font-semibold">{r.codigo_barras || "-"}</div>
+                                      </div>
+                                      <div className={cn("px-2 py-1 rounded", isDark ? "bg-indigo-500/20" : "bg-indigo-50")}>
+                                        <span className="opacity-80">🔖 Código Ref:</span>
+                                        <div className="font-semibold">{r.cod_ref || "-"}</div>
+                                      </div>
                                     </div>
                                   </div>
+                                  
                                   {diferencia !== null && (
-                                    <span className={cn(
-                                      "text-xs px-2 py-1 rounded-lg font-bold",
+                                    <div className={cn(
+                                      "px-3 py-2 rounded-xl font-bold text-center",
                                       diferencia > 5 
                                         ? (isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-700")
                                         : diferencia < -5
                                         ? (isDark ? "bg-red-500/20 text-red-300" : "bg-red-100 text-red-700")
                                         : (isDark ? "bg-amber-500/20 text-amber-300" : "bg-amber-100 text-amber-700")
                                     )}>
-                                      {diferencia > 0 ? "📈" : diferencia < 0 ? "📉" : "📊"} {diferencia.toFixed(1)}%
-                                    </span>
+                                      <div className="text-xl">{diferencia > 0 ? "📈" : diferencia < 0 ? "📉" : "📊"}</div>
+                                      <div className="text-xs">{diferencia.toFixed(1)}%</div>
+                                    </div>
                                   )}
                                 </div>
 
                                 {/* Comparación de precios unitarios */}
-                                <div className="grid grid-cols-4 gap-3">
+                                <div className="grid grid-cols-4 gap-3 mb-4">
                                   <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
                                     <div className="text-xs opacity-80 mb-1">💰 Precio Anterior</div>
-                                    <div className="font-bold">
+                                    <div className="font-bold mb-2">
                                       {precioAnterior ? `Bs ${nf.format(precioAnterior)}` : "—"}
                                     </div>
                                     <input
@@ -2623,7 +2635,7 @@ async function finalizarSesion() {
                                       step="0.01"
                                       placeholder="Editable"
                                       className={cn(
-                                        "w-full mt-1 h-7 px-2 rounded text-xs bg-transparent border",
+                                        "w-full h-8 px-2 rounded text-xs bg-transparent border",
                                         isDark ? "border-white/20" : "border-slate-300"
                                       )}
                                       value={decisiones[`precio_anterior_${r.id}`] || ""}
@@ -2636,7 +2648,9 @@ async function finalizarSesion() {
                                   
                                   <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
                                     <div className="text-xs opacity-80 mb-1">🆕 Precio Nuevo</div>
-                                    <div className="font-bold text-blue-600">Bs {nf.format(precioNuevo)}</div>
+                                    <div className={cn("font-bold text-xl", isDark ? "text-blue-300" : "text-blue-600")}>
+                                      Bs {nf.format(precioNuevo)}
+                                    </div>
                                   </div>
                                   
                                   <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
@@ -2651,11 +2665,81 @@ async function finalizarSesion() {
                                     isDark ? "bg-emerald-500/20 border-emerald-400/50" : "bg-emerald-50 border-emerald-300"
                                   )}>
                                     <div className="text-xs opacity-80 mb-1">🎯 Precio Final</div>
-                                    <div className={cn("font-bold text-lg", isDark ? "text-emerald-300" : "text-emerald-600")}>
+                                    <div className={cn("font-bold text-xl", isDark ? "text-emerald-300" : "text-emerald-600")}>
                                       Bs {nf.format(precioFinal)}
                                     </div>
                                   </div>
                                 </div>
+
+                                {/* Botones de decisión individual */}
+                                <div className="flex items-center justify-center gap-3 mb-3">
+                                  <button
+                                    onClick={() => setDecisiones(prev => ({...prev, [`decision_${r.id}`]: 'usar_anterior'}))}
+                                    className={cn(
+                                      "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                      decisiones[`decision_${r.id}`] === 'usar_anterior'
+                                        ? (isDark ? "bg-blue-500/30 border-blue-400" : "bg-blue-100 border-blue-400")
+                                        : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                                    )}
+                                  >
+                                    <div className="text-xl">⬇️</div>
+                                    <div className="text-xs font-semibold">Anterior</div>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => setDecisiones(prev => ({...prev, [`decision_${r.id}`]: 'usar_nuevo'}))}
+                                    className={cn(
+                                      "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                      decisiones[`decision_${r.id}`] === 'usar_nuevo'
+                                        ? (isDark ? "bg-emerald-500/30 border-emerald-400" : "bg-emerald-100 border-emerald-400")
+                                        : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                                    )}
+                                  >
+                                    <div className="text-xl">⬆️</div>
+                                    <div className="text-xs font-semibold">Nuevo</div>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => setDecisiones(prev => ({...prev, [`decision_${r.id}`]: 'promediar'}))}
+                                    className={cn(
+                                      "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                      decisiones[`decision_${r.id}`] === 'promediar'
+                                        ? (isDark ? "bg-amber-500/30 border-amber-400" : "bg-amber-100 border-amber-400")
+                                        : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                                    )}
+                                  >
+                                    <div className="text-xl">⚖️</div>
+                                    <div className="text-xs font-semibold">Promediar</div>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => setDecisiones(prev => ({...prev, [`decision_${r.id}`]: 'reprocesar'}))}
+                                    className={cn(
+                                      "p-3 rounded-2xl border-2 transition-all hover:scale-105",
+                                      decisiones[`decision_${r.id}`] === 'reprocesar'
+                                        ? (isDark ? "bg-orange-500/30 border-orange-400" : "bg-orange-100 border-orange-400")
+                                        : (isDark ? "bg-white/10 border-white/20 hover:bg-white/15" : "bg-white border-slate-300 hover:bg-slate-50")
+                                    )}
+                                  >
+                                    <div className="text-xl">🔄</div>
+                                    <div className="text-xs font-semibold">Reprocesar</div>
+                                  </button>
+                                </div>
+
+                                {/* Campo de observaciones individual */}
+                                <input
+                                  type="text"
+                                  placeholder="Observaciones específicas del producto..."
+                                  className={cn(
+                                    "w-full h-10 px-3 rounded-xl bg-transparent border",
+                                    isDark ? "border-white/20" : "border-slate-300"
+                                  )}
+                                  value={decisiones[`observacion_${r.id}`] || ""}
+                                  onChange={(e) => setDecisiones(prev => ({
+                                    ...prev,
+                                    [`observacion_${r.id}`]: e.target.value
+                                  }))}
+                                />
                               </div>
                             );
                           })}
@@ -2693,11 +2777,245 @@ async function finalizarSesion() {
               </p>
             </header>
 
+            {/* Filtros de búsqueda */}
             <Card className={cardClass}>
-              <CardContent className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
-                <div className="text-6xl mb-4">🚧</div>
-                <div className="text-xl font-semibold mb-2">Módulo en desarrollo</div>
-                <div className="text-base">La funcionalidad de búsqueda avanzada estará disponible próximamente</div>
+              <CardHeader className="pb-3">
+                <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
+                  🔍 Filtros de Búsqueda
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="Buscar por producto, proveedor..."
+                  className={cn(
+                    "h-10 px-3 rounded-xl bg-transparent border",
+                    isDark ? "border-white/20" : "border-slate-300"
+                  )}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <Select value={proveedorFilter} onValueChange={setProveedorFilter}>
+                  <SelectTrigger className={cn(
+                    "rounded-xl",
+                    isDark ? "bg-white/10 border-white/20" : "bg-white border-slate-300"
+                  )}>
+                    <SelectValue placeholder="Todos los proveedores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los proveedores</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase
+                        .from("decisiones_comparacion")
+                        .select(`
+                          *,
+                          historial_calculos!inner(
+                            producto,
+                            proveedor,
+                            linea,
+                            codigo_barras,
+                            cod_ref,
+                            cantidad_cajas,
+                            cantidad_unidades,
+                            lote,
+                            fecha_vencimiento,
+                            unidades_por_caja
+                          )
+                        `)
+                        .order('fecha_decision', { ascending: false });
+                      if (error) throw error;
+                      setDecisionesHistorial(data || []);
+                    } catch (e) {
+                      console.error("Error cargando historial:", e);
+                      alert("No se pudo cargar el historial de decisiones.");
+                    }
+                  }}
+                  className={cn(
+                    "rounded-xl",
+                    isDark ? "bg-blue-600/80 hover:bg-blue-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
+                  )}
+                >
+                  🔄 Cargar Historial
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Lista de decisiones */}
+            <Card className={cardClass}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
+                    📋 Decisiones Guardadas ({decisionesHistorial.length})
+                  </CardTitle>
+                  <Button
+                    onClick={async () => {
+                      if (decisionesHistorial.length === 0) {
+                        alert("No hay decisiones para exportar.");
+                        return;
+                      }
+                      try {
+                        const XLSX = await import("xlsx");
+                        const excelData = decisionesHistorial.map((d, i) => ({
+                          "#": i + 1,
+                          "Fecha Decisión": new Date(d.fecha_decision).toLocaleString("es-BO"),
+                          "Producto": d.historial_calculos?.producto || "-",
+                          "Proveedor": d.historial_calculos?.proveedor || "-",
+                          "Línea": d.historial_calculos?.linea || "-",
+                          "Código Barras": d.codigo_barras || "-",
+                          "Código Ref": d.cod_ref || "-",
+                          "Cantidad Cajas": d.historial_calculos?.cantidad_cajas || 0,
+                          "Lote": d.historial_calculos?.lote || "-",
+                          "Vencimiento": d.historial_calculos?.fecha_vencimiento || "-",
+                          "Acción Tomada": d.accion_tomada || "-",
+                          "Precio Sistema (Bs)": Number(d.precio_sistema_unitario || 0).toFixed(2),
+                          "Precio Calculado (Bs)": Number(d.precio_calculado_unitario || 0).toFixed(2),
+                          "Precio Final Aprobado (Bs)": Number(d.precio_final_aprobado || 0).toFixed(2),
+                          "Usuario Revisor": d.usuario_revisor || "-",
+                          "Observaciones": d.observaciones || "-",
+                          "Sucursal": d.sucursal || "-"
+                        }));
+                        
+                        const wb = XLSX.utils.book_new();
+                        const ws = XLSX.utils.json_to_sheet(excelData);
+                        ws["!cols"] = Array(16).fill({ wch: 15 });
+                        XLSX.utils.book_append_sheet(wb, ws, "Historial Decisiones");
+                        
+                        const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+                        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `historial_decisiones_${new Date().toISOString().slice(0,10)}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (e) {
+                        console.error("Error exportando:", e);
+                        alert("No se pudo exportar el historial.");
+                      }
+                    }}
+                    disabled={decisionesHistorial.length === 0}
+                    className={cn(
+                      "rounded-xl",
+                      decisionesHistorial.length === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : isDark ? "bg-emerald-600/80 hover:bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    )}
+                  >
+                    📊 Exportar Excel
+                  </Button>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-3">
+                {loadingDecisiones ? (
+                  <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
+                    <div className="text-4xl mb-2">⏳</div>
+                    Cargando decisiones...
+                  </div>
+                ) : decisionesHistorial.length === 0 ? (
+                  <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
+                    <div className="text-4xl mb-2">📭</div>
+                    <div className="text-lg font-semibold mb-2">Sin decisiones guardadas</div>
+                    <div className="text-sm">Las decisiones aparecerán aquí después de guardarlas en el módulo de revisión</div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                    {decisionesHistorial.map((d) => (
+                      <div
+                        key={d.id}
+                        className={cn(
+                          "p-4 rounded-2xl border-2",
+                          isDark ? "bg-white/5 border-white/15" : "bg-white border-slate-200"
+                        )}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="font-bold text-lg">{d.historial_calculos?.producto || "Producto sin nombre"}</div>
+                            <div className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+                              🏢 {d.historial_calculos?.proveedor || "-"} · 🏷️ {d.historial_calculos?.linea || "-"}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
+                              📅 {new Date(d.fecha_decision).toLocaleString("es-BO")}
+                            </div>
+                            <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
+                              👤 {d.usuario_revisor}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-green-500/20" : "bg-green-50")}>
+                            <span className="opacity-80">📦 Cajas:</span>
+                            <div className="font-semibold">{d.historial_calculos?.cantidad_cajas || 0}</div>
+                          </div>
+                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                            <span className="opacity-80">🏷️ Lote:</span>
+                            <div className="font-semibold">{d.historial_calculos?.lote || "-"}</div>
+                          </div>
+                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-red-500/20" : "bg-red-50")}>
+                            <span className="opacity-80">📅 Vencimiento:</span>
+                            <div className="font-semibold">
+                              {d.historial_calculos?.fecha_vencimiento 
+                                ? new Date(d.historial_calculos.fecha_vencimiento).toLocaleDateString("es-BO") 
+                                : "-"}
+                            </div>
+                          </div>
+                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                            <span className="opacity-80">📊 Código:</span>
+                            <div className="font-semibold">{d.codigo_barras || d.cod_ref || "-"}</div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-3 mb-3">
+                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                            <div className="text-xs opacity-80">💰 Sistema</div>
+                            <div className="font-bold">Bs {nf.format(d.precio_sistema_unitario || 0)}</div>
+                          </div>
+                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                            <div className="text-xs opacity-80">🆕 Calculado</div>
+                            <div className="font-bold">Bs {nf.format(d.precio_calculado_unitario || 0)}</div>
+                          </div>
+                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
+                            <div className="text-xs opacity-80">🎯 Final</div>
+                            <div className="font-bold text-emerald-600">Bs {nf.format(d.precio_final_aprobado || 0)}</div>
+                          </div>
+                          <div className={cn(
+                            "p-2 text-center rounded-xl",
+                            d.accion_tomada === 'usar_anterior' 
+                              ? (isDark ? "bg-blue-500/20" : "bg-blue-50")
+                              : d.accion_tomada === 'usar_nuevo'
+                              ? (isDark ? "bg-emerald-500/20" : "bg-emerald-50")
+                              : d.accion_tomada === 'promediar'
+                              ? (isDark ? "bg-amber-500/20" : "bg-amber-50")
+                              : (isDark ? "bg-orange-500/20" : "bg-orange-50")
+                          )}>
+                            <div className="text-xs opacity-80">Decisión</div>
+                            <div className="font-bold text-xs">
+                              {d.accion_tomada === 'usar_anterior' ? '⬇️ Anterior' :
+                               d.accion_tomada === 'usar_nuevo' ? '⬆️ Nuevo' :
+                               d.accion_tomada === 'promediar' ? '⚖️ Promedio' :
+                               d.accion_tomada === 'reprocesar' ? '🔄 Reprocesar' : d.accion_tomada}
+                            </div>
+                          </div>
+                        </div>
+
+                        {d.observaciones && (
+                          <div className={cn("text-xs p-2 rounded-lg", isDark ? "bg-white/10" : "bg-slate-50")}>
+                            <span className="opacity-80">💬 Observaciones:</span> {d.observaciones}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
