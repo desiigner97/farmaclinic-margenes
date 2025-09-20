@@ -653,7 +653,7 @@ export default function AppMargenes() {
       // Guardar en la tabla decisiones_comparacion
       const { error } = await supabase
         .from("decisiones_comparacion")
-        .upsert(rows, { onConflict: "session_id,historial_id" });
+        .insert(rows);
       
       if (error) throw error;
 
@@ -673,7 +673,7 @@ export default function AppMargenes() {
       if (preciosParaActualizar.length > 0) {
         const { error: errorPrecios } = await supabase
           .from("precios_sistema")
-          .upsert(preciosParaActualizar, { onConflict: "codigo_barras,cod_ref" });
+          .upsert(preciosParaActualizar);
         
         if (errorPrecios) console.error("Error actualizando precios_sistema:", errorPrecios);
       }
