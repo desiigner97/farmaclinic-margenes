@@ -629,13 +629,13 @@ export default function AppMargenes() {
         
         if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
-          accionParaBD = 'anterior';
+          accionParaBD = 'antiguo';
         } else if (decision === 'promediar' && precioAnterior) {
           precioFinal = (precioNuevo + precioAnterior) / 2;
           accionParaBD = 'promedio';
         } else if (decision === 'reprocesar') {
           precioFinal = precioNuevo;
-          accionParaBD = 'reprocesar';
+          accionParaBD = 'manual';
         } else {
           accionParaBD = 'nuevo';
         }
