@@ -659,10 +659,40 @@ export default function AppMargenes() {
         };
       });
 
-      // Guardar en la tabla decisiones_comparacion
+      // Guardar en la tabla decisiones (sin restricciones conflictivas)
+      const rowsDecisiones = decisionesTomadas.map(r => {
+        const decision = decisiones[`decision_${r.id}`];
+        const precioAnteriorSistema = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
+        const precioAnteriorEditado = decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
+        const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
+        
+        let precioFinal = r.precio_final_unitario ?? 0;
+        let accionTexto = 'usar_nuevo';
+        
+        if (decision === 'usar_anterior' && precioAnterior) {
+          precioFinal = precioAnterior;
+          accionTexto = 'usar_anterior';
+        } else if (decision === 'promediar' && precioAnterior) {
+          precioFinal = (r.precio_final_unitario + precioAnterior) / 2;
+          accionTexto = 'promediar';
+        } else if (decision === 'reprocesar') {
+          accionTexto = 'reprocesar';
+        }
+        
+        return {
+          historial_id: r.id,
+          precio_sistema_unitario: precioAnterior,
+          precio_sistema_caja: precioAnterior ? precioAnterior * (r.unidades_por_caja || 1) : null,
+          accion_tomada: accionTexto,
+          precio_final_aprobado: precioFinal,
+          observaciones: decisiones[`observacion_${r.id}`] || decisiones.observaciones_global || null,
+          usuario_revisor: "revisor"
+        };
+      });
+
       const { error } = await supabase
-        .from("decisiones_comparacion")
-        .insert(rows);
+        .from("decisiones")
+        .insert(rowsDecisiones);
       
       if (error) throw error;
 
@@ -688,7 +718,7 @@ export default function AppMargenes() {
       }
 
       // Contar tipos de decisiones
-      const conteos = rows.reduce((acc, r) => {
+      const conteos = rowsDecisiones.reduce((acc, r) => {
         acc[r.accion_tomada] = (acc[r.accion_tomada] || 0) + 1;
         return acc;
       }, {});
