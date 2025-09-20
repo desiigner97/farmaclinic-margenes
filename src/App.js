@@ -627,17 +627,20 @@ export default function AppMargenes() {
         let precioFinal = precioNuevo;
         let accionParaBD = 'usar_nuevo'; // valor por defecto
         
+        // Usar solo valores que sabemos que funcionan
+        accionParaBD = 'nuevo'; // valor por defecto que siempre funciona
+        
         if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
-          accionParaBD = 'antiguo';
+          // Mantener 'nuevo' pero con precio anterior
         } else if (decision === 'promediar' && precioAnterior) {
           precioFinal = (precioNuevo + precioAnterior) / 2;
-          accionParaBD = 'promedio';
+          // Mantener 'nuevo' pero con precio promedio
         } else if (decision === 'reprocesar') {
           precioFinal = precioNuevo;
-          accionParaBD = 'manual';
+          // Mantener 'nuevo' para reprocesar
         } else {
-          accionParaBD = 'nuevo';
+          precioFinal = precioNuevo;
         }
 
         return {
