@@ -1100,16 +1100,35 @@ async function finalizarSesion() {
   async function finalizarRevisionActual() {
     if (!sesionEnRevision) return;
     try {
-      const { error } = await supabase
+      // 1. Marcar sesión como completada definitivamente
+      const { error: errorSesion } = await supabase
         .from('sesiones_trabajo')
-        .update({ estado: 'enviada_revision' })
+        .update({ 
+          estado: 'enviada_revision', // Usando el estado que funciona
+          fecha_finalizacion: new Date().toISOString()
+        })
         .eq('id', sesionEnRevision.id);
-      if (error) throw error;
-      alert('Sesión procesada y lista para siguiente etapa.');
+      
+      if (errorSesion) throw errorSesion;
+
+      // 2. Marcar productos como procesados en historial_calculos
+      const { error: errorHistorial } = await supabase
+        .from('historial_calculos')
+        .update({ estado: 'completado' })
+        .eq('session_id', sesionEnRevision.id);
+
+      if (errorHistorial) {
+        console.error('Error marcando historial como completado:', errorHistorial);
+      }
+
+      alert(`Sesión "${sesionEnRevision.nombre}" finalizada correctamente. Las decisiones están disponibles en el historial.`);
+      
+      // 3. Limpiar estado local
       setSesionEnRevision(null);
       setProductosRevision([]);
       setDecisiones({});
       cargarSesionesPendientes();
+      
     } catch (e) {
       console.error(e);
       alert('No se pudo finalizar la revisión.');
@@ -2898,7 +2917,7 @@ async function finalizarSesion() {
                   onClick={async () => {
                     try {
                       const { data, error } = await supabase
-                        .from("decisiones_comparacion")
+                        .from("decisiones")
                         .select(`
                           *,
                           historial_calculos!inner(
