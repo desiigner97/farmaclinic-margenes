@@ -1055,10 +1055,10 @@ async function finalizarSesion() {
     try {
       const { error } = await supabase
         .from('sesiones_trabajo')
-        .update({ estado: 'completada' })
+        .update({ estado: 'enviada_revision' })
         .eq('id', sesionEnRevision.id);
       if (error) throw error;
-      alert('Sesión marcada como completada.');
+      alert('Sesión procesada y lista para siguiente etapa.');
       setSesionEnRevision(null);
       setProductosRevision([]);
       setDecisiones({});
