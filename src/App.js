@@ -654,9 +654,16 @@ async function guardarTodasLasDecisiones() {
       });
 
       // Solo guardar decisiones en tabla 'decisiones' - SIN tocar precios_sistema
+      // Primero eliminar decisiones existentes para esta sesión
+      await supabase
+        .from("decisiones")
+        .delete()
+        .in('historial_id', decisionesTomadas.map(r => r.id));
+
+      // Luego insertar las nuevas decisiones
       const { error } = await supabase
         .from("decisiones")
-        .upsert(rowsDecisiones, { onConflict: 'historial_id' });
+        .insert(rowsDecisiones);
       
       if (error) throw error;
 
