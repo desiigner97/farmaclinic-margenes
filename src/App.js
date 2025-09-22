@@ -599,7 +599,7 @@ export default function AppMargenes() {
     }
   }
 
-  async function guardarTodasLasDecisiones() {
+async function guardarTodasLasDecisiones() {
     try {
       const sessionId = sesionEnRevision?.id;
       if (!sessionId) {
@@ -614,52 +614,7 @@ export default function AppMargenes() {
         return;
       }
 
-      // Preparar decisiones SOLO para productos que tienen decisión tomada
-      const rows = decisionesTomadas.map(r => {
-        const code = r.codigo_barras || r.cod_ref;
-        const ps = preciosSistema[code];
-        const precioNuevo = r.precio_final_unitario ?? 0;
-        const precioAnteriorSistema = ps?.precio_caja ? (ps.precio_caja / (r.unidades_por_caja || 1)) : null;
-        const precioAnteriorEditado = decisiones[`precio_anterior_${r.id}`] ? Number(decisiones[`precio_anterior_${r.id}`]) : null;
-        const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
-        
-        const decision = decisiones[`decision_${r.id}`] || 'usar_nuevo';
-        let precioFinal = precioNuevo;
-        let accionParaBD = 'usar_nuevo'; // valor por defecto
-        
-        // Usar solo valores que sabemos que funcionan
-        accionParaBD = 'nuevo'; // valor por defecto que siempre funciona
-        
-        if (decision === 'usar_anterior' && precioAnterior) {
-          precioFinal = precioAnterior;
-          // Mantener 'nuevo' pero con precio anterior
-        } else if (decision === 'promediar' && precioAnterior) {
-          precioFinal = (precioNuevo + precioAnterior) / 2;
-          // Mantener 'nuevo' pero con precio promedio
-        } else if (decision === 'reprocesar') {
-          precioFinal = precioNuevo;
-          // Mantener 'nuevo' para reprocesar
-        } else {
-          precioFinal = precioNuevo;
-        }
-
-        return {
-          session_id: sessionId,
-          historial_id: r.id,
-          codigo_barras: r.codigo_barras,
-          cod_ref: r.cod_ref,
-          accion_tomada: accionParaBD,
-          precio_sistema_unitario: precioAnterior,
-          precio_calculado_unitario: precioNuevo,
-          precio_final_aprobado: precioFinal,
-          observaciones: decisiones[`observacion_${r.id}`] || decisiones.observaciones_global || null,
-          usuario_revisor: "revisor",
-          fecha_decision: new Date().toISOString(),
-          sucursal: "Principal"
-        };
-      });
-
-// Guardar en la tabla decisiones (sin restricciones conflictivas)
+      // Preparar decisiones para guardar como "borrador"
       const rowsDecisiones = decisionesTomadas.map(r => {
         const decision = decisiones[`decision_${r.id}`];
         const code = r.codigo_barras || r.cod_ref;
@@ -669,7 +624,7 @@ export default function AppMargenes() {
         const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
         
         let precioFinal = r.precio_final_unitario ?? 0;
-       let accionTexto = 'nuevo';
+        let accionTexto = 'nuevo';
         
         if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
@@ -681,90 +636,29 @@ export default function AppMargenes() {
           accionTexto = 'manual';
         }
         
+        // Combinar observaciones individuales y generales
+        const observacionesCompletas = [
+          decisiones[`observacion_${r.id}`]?.trim(),
+          decisiones.observaciones_global?.trim()
+        ].filter(Boolean).join(' | ');
+        
         return {
           historial_id: r.id,
-          precio_sistema_unitario: precioAnterior,
+          precio_sistema_unitario: precioAnterior, // Guarda el precio anterior editado
           precio_sistema_caja: precioAnterior ? precioAnterior * (r.unidades_por_caja || 1) : null,
           accion_tomada: accionTexto,
           precio_final_aprobado: precioFinal,
-          observaciones: decisiones[`observacion_${r.id}`] || decisiones.observaciones_global || null,
+          observaciones: observacionesCompletas || null,
           usuario_revisor: "revisor"
         };
       });
 
+      // Solo guardar decisiones en tabla 'decisiones' - SIN tocar precios_sistema
       const { error } = await supabase
         .from("decisiones")
-        .insert(rowsDecisiones);
+        .upsert(rowsDecisiones, { onConflict: 'historial_id' });
       
       if (error) throw error;
-
-      // Actualizar precios_sistema con los precios finales aprobados (excepto reprocesar)
-      const productosParaActualizar = decisionesTomadas.filter(r => 
-        decisiones[`decision_${r.id}`] !== 'reprocesar' && (r.codigo_barras || r.cod_ref)
-      );
-
-      for (const producto of productosParaActualizar) {
-        const decision = decisiones[`decision_${producto.id}`];
-        const precioAnteriorEditado = decisiones[`precio_anterior_${producto.id}`] ? Number(decisiones[`precio_anterior_${producto.id}`]) : null;
-        const code = producto.codigo_barras || producto.cod_ref;
-        const precioSistema = preciosSistema[code];
-        const precioAnteriorSistema = precioSistema?.precio_caja ? (precioSistema.precio_caja / (producto.unidades_por_caja || 1)) : null;
-        const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
-        
-        let precioFinalUnitario = producto.precio_final_unitario ?? 0;
-        
-        if (decision === 'usar_anterior' && precioAnterior) {
-          precioFinalUnitario = precioAnterior;
-        } else if (decision === 'promediar' && precioAnterior) {
-          precioFinalUnitario = (producto.precio_final_unitario + precioAnterior) / 2;
-        }
-
-        const precioFinalCaja = precioFinalUnitario * (producto.unidades_por_caja || 1);
-
-        try {
-          // Primero verificar si existe el registro
-          const { data: existe, error: errorBuscar } = await supabase
-            .from("precios_sistema")
-            .select("id")
-            .or(`codigo_barras.eq.${producto.codigo_barras || 'null'},cod_ref.eq.${producto.cod_ref || 'null'}`)
-            .single();
-
-          if (errorBuscar && errorBuscar.code !== 'PGRST116') {
-            console.error(`Error buscando precio existente:`, errorBuscar);
-            continue;
-          }
-
-          let errorPrecios;
-          if (existe) {
-            // Actualizar registro existente
-            const { error } = await supabase
-              .from("precios_sistema")
-              .update({
-                precio_caja: precioFinalCaja,
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", existe.id);
-            errorPrecios = error;
-          } else {
-            // Crear nuevo registro
-            const { error } = await supabase
-              .from("precios_sistema")
-              .insert({
-                codigo_barras: producto.codigo_barras || null,
-                cod_ref: producto.cod_ref || null,
-                precio_caja: precioFinalCaja,
-                updated_at: new Date().toISOString()
-              });
-            errorPrecios = error;
-          }
-          
-          if (errorPrecios) {
-            console.error(`Error actualizando precio para ${producto.nombre}:`, errorPrecios);
-          }
-        } catch (e) {
-          console.error(`Error actualizando precio para ${producto.nombre}:`, e);
-        }
-      }
 
       // Contar tipos de decisiones
       const conteos = rowsDecisiones.reduce((acc, r) => {
@@ -774,19 +668,15 @@ export default function AppMargenes() {
 
       const resumen = Object.entries(conteos).map(([tipo, cantidad]) => {
         const nombres = {
-          'usar_anterior': 'Usar Anterior',
-          'usar_nuevo': 'Usar Nuevo',
+          'antiguo': 'Usar Anterior',
+          'nuevo': 'Usar Nuevo',
           'promediar': 'Promediar',
-          'reprocesar': 'Reprocesar'
+          'manual': 'Reprocesar'
         };
         return `${nombres[tipo]}: ${cantidad}`;
       }).join(', ');
 
-      alert(`Decisiones guardadas para ${rows.length} de ${productosRevision.length} productos.\n${resumen}\nPrecios actualizados en el sistema.`);
-      
-      // Limpiar decisiones y recargar
-      setDecisiones({});
-      await cargarDecisionesDeSesion();
+      alert(`Decisiones guardadas como borrador para ${rowsDecisiones.length} productos.\n${resumen}\n\nUsa "Finalizar" para aplicar los precios al sistema.`);
       
     } catch (e) {
       console.error("guardarTodasLasDecisiones() error:", e);
@@ -1096,22 +986,98 @@ async function finalizarSesion() {
     }));
   }
 
-  // 13.4. Finalizador del proceso de revisión completo
+  // 13.4. Finalizador del proceso de revisión completo - Lee decisiones guardadas y consolida todo
   async function finalizarRevisionActual() {
     if (!sesionEnRevision) return;
+    
     try {
-      // 1. Marcar sesión como completada definitivamente
+      // 1. Verificar que existen decisiones guardadas para esta sesión
+      const { data: decisionesGuardadas, error: errorDecisiones } = await supabase
+        .from('decisiones')
+        .select(`
+          *,
+          historial_calculos!inner(
+            id, producto, codigo_barras, cod_ref, unidades_por_caja
+          )
+        `)
+        .eq('historial_calculos.session_id', sesionEnRevision.id);
+
+      if (errorDecisiones) throw errorDecisiones;
+
+      if (!decisionesGuardadas || decisionesGuardadas.length === 0) {
+        alert('No hay decisiones guardadas para finalizar. Usa "Guardar Todas las Decisiones" primero.');
+        return;
+      }
+
+      // 2. Aplicar precios finales al sistema (excepto los marcados para reprocesar)
+      const decisionesParaAplicar = decisionesGuardadas.filter(d => d.accion_tomada !== 'manual');
+      let preciosActualizados = 0;
+
+      for (const decision of decisionesParaAplicar) {
+        const producto = decision.historial_calculos;
+        if (!producto?.codigo_barras && !producto?.cod_ref) continue;
+
+        const precioFinalCaja = decision.precio_final_aprobado * (producto.unidades_por_caja || 1);
+
+        try {
+          // Verificar si existe registro en precios_sistema
+          const { data: existe, error: errorBuscar } = await supabase
+            .from("precios_sistema")
+            .select("id")
+            .or(`codigo_barras.eq.${producto.codigo_barras || 'null'},cod_ref.eq.${producto.cod_ref || 'null'}`)
+            .single();
+
+          if (errorBuscar && errorBuscar.code !== 'PGRST116') {
+            console.error(`Error buscando precio existente:`, errorBuscar);
+            continue;
+          }
+
+          let errorPrecios;
+          if (existe) {
+            // Actualizar registro existente
+            const { error } = await supabase
+              .from("precios_sistema")
+              .update({
+                precio_caja: precioFinalCaja,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", existe.id);
+            errorPrecios = error;
+          } else {
+            // Crear nuevo registro
+            const { error } = await supabase
+              .from("precios_sistema")
+              .insert({
+                codigo_barras: producto.codigo_barras || null,
+                cod_ref: producto.cod_ref || null,
+                precio_caja: precioFinalCaja,
+                updated_at: new Date().toISOString()
+              });
+            errorPrecios = error;
+          }
+
+          if (!errorPrecios) {
+            preciosActualizados++;
+          } else {
+            console.error(`Error actualizando precio para ${producto.producto}:`, errorPrecios);
+          }
+        } catch (e) {
+          console.error(`Error procesando precio para ${producto.producto}:`, e);
+        }
+      }
+
+      // 3. Marcar sesión como completada
       const { error: errorSesion } = await supabase
         .from('sesiones_trabajo')
         .update({ 
-          estado: 'en_proceso', // Usar estado que funciona pero que no está en pendientes
+          estado: 'en_proceso', // Estado que no aparece en pendientes
           fecha_finalizacion: new Date().toISOString()
         })
         .eq('id', sesionEnRevision.id);
       
       if (errorSesion) throw errorSesion;
 
-      // 2. Marcar productos como procesados en historial_calculos
+      // 4. Marcar productos como procesados en historial
       const { error: errorHistorial } = await supabase
         .from('historial_calculos')
         .update({ estado: 'completado' })
@@ -1121,44 +1087,50 @@ async function finalizarSesion() {
         console.error('Error marcando historial como completado:', errorHistorial);
       }
 
-      alert(`Sesión "${sesionEnRevision.nombre}" finalizada correctamente. Las decisiones están disponibles en el historial.`);
+      // 5. Auto-cargar historial actualizado
+      const { data: historialActualizado, error: errorCargarHistorial } = await supabase
+        .from("decisiones")
+        .select(`
+          *,
+          historial_calculos!inner(
+            producto,
+            proveedor,
+            linea,
+            codigo_barras,
+            cod_ref,
+            cantidad_cajas,
+            cantidad_unidades,
+            lote,
+            fecha_vencimiento,
+            unidades_por_caja
+          )
+        `)
+        .order('fecha_decision', { ascending: false });
+
+      if (!errorCargarHistorial) {
+        setDecisionesHistorial(historialActualizado || []);
+      }
+
+      // 6. Mensaje de éxito con resumen
+      const reprocesar = decisionesGuardadas.length - decisionesParaAplicar.length;
+      let mensaje = `Sesión "${sesionEnRevision.nombre}" finalizada correctamente.\n\n`;
+      mensaje += `✅ ${preciosActualizados} precios actualizados en el sistema\n`;
+      if (reprocesar > 0) {
+        mensaje += `🔄 ${reprocesar} productos marcados para reprocesar\n`;
+      }
+      mensaje += `📋 ${decisionesGuardadas.length} decisiones migradas al historial`;
+
+      alert(mensaje);
       
-      // 3. Limpiar estado local
+      // 7. Limpiar interfaz
       setSesionEnRevision(null);
       setProductosRevision([]);
       setDecisiones({});
       cargarSesionesPendientes();
       
-      // Auto-cargar decisiones en el historial
-      try {
-        const { data, error } = await supabase
-          .from("decisiones")
-          .select(`
-            *,
-            historial_calculos!inner(
-              producto,
-              proveedor,
-              linea,
-              codigo_barras,
-              cod_ref,
-              cantidad_cajas,
-              cantidad_unidades,
-              lote,
-              fecha_vencimiento,
-              unidades_por_caja
-            )
-          `)
-          .order('fecha_decision', { ascending: false });
-        if (!error) {
-          setDecisionesHistorial(data || []);
-        }
-      } catch (e) {
-        console.error("Error cargando historial automático:", e);
-      }
-      
     } catch (e) {
-      console.error(e);
-      alert('No se pudo finalizar la revisión.');
+      console.error('Error en finalización:', e);
+      alert('No se pudo finalizar la revisión completamente. Revisa la consola para detalles.');
     }
   }
 
