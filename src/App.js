@@ -970,8 +970,50 @@ async function finalizarSesion() {
         setPreciosSistema({});
       }
       
-      // 3) Limpiar decisiones previas
-      setDecisiones({});
+      // 3) Cargar decisiones previamente guardadas para esta sesión
+      const { data: decisionesGuardadas, error: errorDecisiones } = await supabase
+        .from('decisiones')
+        .select('*')
+        .in('historial_id', (filas || []).map(f => f.id));
+
+      if (!errorDecisiones && decisionesGuardadas) {
+        // Reconstruir el estado de decisiones desde la base de datos
+        const decisionesRecuperadas = {};
+        
+        decisionesGuardadas.forEach(d => {
+          const historialId = d.historial_id;
+          
+          // Mapear accion_tomada de vuelta a las decisiones de la interfaz
+          let decisionUI = 'usar_nuevo';
+          if (d.accion_tomada === 'antiguo') decisionUI = 'usar_anterior';
+          else if (d.accion_tomada === 'promediar') decisionUI = 'promediar';
+          else if (d.accion_tomada === 'manual') decisionUI = 'reprocesar';
+          
+          decisionesRecuperadas[`decision_${historialId}`] = decisionUI;
+          
+          // Recuperar precio anterior si se editó
+          if (d.precio_sistema_unitario) {
+            decisionesRecuperadas[`precio_anterior_${historialId}`] = d.precio_sistema_unitario;
+          }
+          
+          // Recuperar observaciones individuales
+          if (d.observaciones) {
+            // Si tiene separador |, dividir entre observación individual y general
+            const partes = d.observaciones.split(' | ');
+            if (partes.length > 1) {
+              decisionesRecuperadas[`observacion_${historialId}`] = partes[0];
+              decisionesRecuperadas.observaciones_global = partes[1];
+            } else {
+              decisionesRecuperadas[`observacion_${historialId}`] = d.observaciones;
+            }
+          }
+        });
+        
+        setDecisiones(decisionesRecuperadas);
+        console.log(`Cargadas ${decisionesGuardadas.length} decisiones previamente guardadas`);
+      } else {
+        setDecisiones({});
+      }
       
     } catch (err) {
       console.error('Error abriendo sesión en revisión:', err);
