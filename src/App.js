@@ -1009,6 +1009,8 @@ async function finalizarSesion() {
           }
         });
         
+        console.log('Decisiones encontradas en BD:', decisionesGuardadas);
+        console.log('Decisiones reconstruidas para UI:', decisionesRecuperadas);
         setDecisiones(decisionesRecuperadas);
         console.log(`Cargadas ${decisionesGuardadas.length} decisiones previamente guardadas`);
       } else {
