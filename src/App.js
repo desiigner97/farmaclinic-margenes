@@ -1104,7 +1104,7 @@ async function finalizarSesion() {
       const { error: errorSesion } = await supabase
         .from('sesiones_trabajo')
         .update({ 
-          estado: 'enviada_revision', // Usando el estado que funciona
+          estado: 'completada', // Cambiar a completada para que no aparezca en pendientes
           fecha_finalizacion: new Date().toISOString()
         })
         .eq('id', sesionEnRevision.id);
@@ -1128,6 +1128,33 @@ async function finalizarSesion() {
       setProductosRevision([]);
       setDecisiones({});
       cargarSesionesPendientes();
+      
+      // Auto-cargar decisiones en el historial
+      try {
+        const { data, error } = await supabase
+          .from("decisiones")
+          .select(`
+            *,
+            historial_calculos!inner(
+              producto,
+              proveedor,
+              linea,
+              codigo_barras,
+              cod_ref,
+              cantidad_cajas,
+              cantidad_unidades,
+              lote,
+              fecha_vencimiento,
+              unidades_por_caja
+            )
+          `)
+          .order('fecha_decision', { ascending: false });
+        if (!error) {
+          setDecisionesHistorial(data || []);
+        }
+      } catch (e) {
+        console.error("Error cargando historial automático:", e);
+      }
       
     } catch (e) {
       console.error(e);
