@@ -669,16 +669,16 @@ export default function AppMargenes() {
         const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
         
         let precioFinal = r.precio_final_unitario ?? 0;
-        let accionTexto = 'usar_nuevo';
+       let accionTexto = 'nuevo';
         
         if (decision === 'usar_anterior' && precioAnterior) {
           precioFinal = precioAnterior;
-          accionTexto = 'usar_anterior';
+          accionTexto = 'antiguo';
         } else if (decision === 'promediar' && precioAnterior) {
           precioFinal = (r.precio_final_unitario + precioAnterior) / 2;
           accionTexto = 'promediar';
         } else if (decision === 'reprocesar') {
-          accionTexto = 'reprocesar';
+          accionTexto = 'manual';
         }
         
         return {
