@@ -722,14 +722,41 @@ export default function AppMargenes() {
         const precioFinalCaja = precioFinalUnitario * (producto.unidades_por_caja || 1);
 
         try {
-          const { error: errorPrecios } = await supabase
+          // Primero verificar si existe el registro
+          const { data: existe, error: errorBuscar } = await supabase
             .from("precios_sistema")
-            .upsert({
-              codigo_barras: producto.codigo_barras || null,
-              cod_ref: producto.cod_ref || null,
-              precio_caja: precioFinalCaja,
-              updated_at: new Date().toISOString()
-            });
+            .select("id")
+            .or(`codigo_barras.eq.${producto.codigo_barras || 'null'},cod_ref.eq.${producto.cod_ref || 'null'}`)
+            .single();
+
+          if (errorBuscar && errorBuscar.code !== 'PGRST116') {
+            console.error(`Error buscando precio existente:`, errorBuscar);
+            continue;
+          }
+
+          let errorPrecios;
+          if (existe) {
+            // Actualizar registro existente
+            const { error } = await supabase
+              .from("precios_sistema")
+              .update({
+                precio_caja: precioFinalCaja,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", existe.id);
+            errorPrecios = error;
+          } else {
+            // Crear nuevo registro
+            const { error } = await supabase
+              .from("precios_sistema")
+              .insert({
+                codigo_barras: producto.codigo_barras || null,
+                cod_ref: producto.cod_ref || null,
+                precio_caja: precioFinalCaja,
+                updated_at: new Date().toISOString()
+              });
+            errorPrecios = error;
+          }
           
           if (errorPrecios) {
             console.error(`Error actualizando precio para ${producto.nombre}:`, errorPrecios);
