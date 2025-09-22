@@ -734,6 +734,10 @@ async function guardarTodasLasDecisiones() {
   const [decisionesHistorial, setDecisionesHistorial] = useState([]);
   const [loadingDecisiones, setLoadingDecisiones] = useState(false);
 
+  // 8.6. ESTADOS PARA HISTORIAL CONSOLIDADO
+  const [historialConsolidado, setHistorialConsolidado] = useState([]);
+  const [loadingHistorialConsolidado, setLoadingHistorialConsolidado] = useState(false);
+
   // 8.4. Estado de la sesión de trabajo actual
   const [sesionActual, setSesionActual] = useState(null);
 
@@ -1117,18 +1121,21 @@ async function finalizarSesion() {
         }
       }
 
-      // 3. Marcar sesión como completada
+      // 3. NUEVO: Crear registro consolidado
+      await crearRegistroConsolidado(sesionEnRevision, decisionesGuardadas, preciosActualizados, decisiones.observaciones_global);
+
+      // 4. Marcar sesión como completada
       const { error: errorSesion } = await supabase
         .from('sesiones_trabajo')
         .update({ 
-          estado: 'en_proceso', // Estado que no aparece en pendientes
+          estado: 'completada',
           fecha_finalizacion: new Date().toISOString()
         })
         .eq('id', sesionEnRevision.id);
       
       if (errorSesion) throw errorSesion;
 
-      // 4. Marcar productos como procesados en historial
+      // 5. Marcar productos como procesados en historial
       const { error: errorHistorial } = await supabase
         .from('historial_calculos')
         .update({ estado: 'completado' })
@@ -1138,38 +1145,14 @@ async function finalizarSesion() {
         console.error('Error marcando historial como completado:', errorHistorial);
       }
 
-      // 5. Auto-cargar historial actualizado
-      const { data: historialActualizado, error: errorCargarHistorial } = await supabase
-        .from("decisiones")
-        .select(`
-          *,
-          historial_calculos!inner(
-            producto,
-            proveedor,
-            linea,
-            codigo_barras,
-            cod_ref,
-            cantidad_cajas,
-            cantidad_unidades,
-            lote,
-            fecha_vencimiento,
-            unidades_por_caja
-          )
-        `)
-        .order('fecha_decision', { ascending: false });
-
-      if (!errorCargarHistorial) {
-        setDecisionesHistorial(historialActualizado || []);
-      }
-
       // 6. Mensaje de éxito con resumen
       const reprocesar = decisionesGuardadas.length - decisionesParaAplicar.length;
-      let mensaje = `Sesión "${sesionEnRevision.nombre}" finalizada correctamente.\n\n`;
+      let mensaje = `Sesión "${sesionEnRevision.nombre}" finalizada y consolidada correctamente.\n\n`;
       mensaje += `✅ ${preciosActualizados} precios actualizados en el sistema\n`;
       if (reprocesar > 0) {
         mensaje += `🔄 ${reprocesar} productos marcados para reprocesar\n`;
       }
-      mensaje += `📋 ${decisionesGuardadas.length} decisiones migradas al historial`;
+      mensaje += `📋 Registro consolidado creado en historial`;
 
       alert(mensaje);
       
@@ -1182,6 +1165,108 @@ async function finalizarSesion() {
     } catch (e) {
       console.error('Error en finalización:', e);
       alert('No se pudo finalizar la revisión completamente. Revisa la consola para detalles.');
+    }
+  }
+
+  // === NUEVAS FUNCIONES PARA HISTORIAL CONSOLIDADO ===
+
+  // Función para crear registro consolidado
+  async function crearRegistroConsolidado(sesion, decisionesGuardadas, preciosActualizados, observacionesGlobales = null) {
+    try {
+      const resumenDecisiones = decisionesGuardadas.reduce((acc, d) => {
+        acc[d.accion_tomada] = (acc[d.accion_tomada] || 0) + 1;
+        return acc;
+      }, {});
+
+      const montoTotalActualizado = decisionesGuardadas
+        .filter(d => d.accion_tomada !== 'manual')
+        .reduce((total, d) => total + (d.precio_final_aprobado * (d.historial_calculos?.unidades_por_caja || 1)), 0);
+
+      const registroConsolidado = {
+        session_id: sesion.id,
+        sesion_nombre: sesion.nombre,
+        total_productos: decisionesGuardadas.length,
+        productos_antiguos: resumenDecisiones.antiguo || 0,
+        productos_nuevos: resumenDecisiones.nuevo || 0,
+        productos_promediados: resumenDecisiones.promediar || 0,
+        productos_reprocesar: resumenDecisiones.manual || 0,
+        precios_actualizados: preciosActualizados,
+        monto_total_actualizado: montoTotalActualizado,
+        fecha_consolidacion: new Date().toISOString(),
+        usuario_revisor: "revisor",
+        resumen_observaciones: observacionesGlobales || null,
+        sucursal: sesion.sucursal || "Principal"
+      };
+
+      const { error: errorConsolidado } = await supabase
+        .from("historial_consolidado")
+        .insert(registroConsolidado);
+
+      if (errorConsolidado) {
+        console.error("Error creando registro consolidado:", errorConsolidado);
+      } else {
+        console.log("Registro consolidado creado exitosamente");
+      }
+      
+    } catch (e) {
+      console.error("Error en crearRegistroConsolidado:", e);
+    }
+  }
+
+  // Función para cargar historial consolidado
+  async function cargarHistorialConsolidado() {
+    try {
+      const { data, error } = await supabase
+        .from("historial_consolidado")
+        .select("*")
+        .order("fecha_consolidacion", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.error("Error cargando historial consolidado:", e);
+      return [];
+    }
+  }
+
+  // Función para eliminar registro consolidado (sin afectar precios)
+  async function eliminarRegistroConsolidado(registroId, sessionId) {
+    if (!window.confirm("¿Eliminar este registro del historial? Los precios del sistema NO se verán afectados.")) {
+      return false;
+    }
+    
+    try {
+      // Eliminar decisiones individuales
+      const { error: errorDecisiones } = await supabase
+        .from("decisiones")
+        .delete()
+        .eq("session_id", sessionId);
+      
+      if (errorDecisiones) throw errorDecisiones;
+      
+      // Eliminar registro consolidado
+      const { error: errorConsolidado } = await supabase
+        .from("historial_consolidado")
+        .delete()
+        .eq("id", registroId);
+      
+      if (errorConsolidado) throw errorConsolidado;
+      
+      // Marcar sesión como eliminada del historial
+      const { error: errorSesion } = await supabase
+        .from("sesiones_trabajo")
+        .update({ estado: "eliminada_historial" })
+        .eq("id", sessionId);
+      
+      if (errorSesion) console.warn("No se pudo actualizar estado de sesión:", errorSesion);
+      
+      alert("Registro eliminado del historial. Los precios del sistema permanecen intactos.");
+      return true;
+      
+    } catch (e) {
+      console.error("Error eliminando registro:", e);
+      alert("No se pudo eliminar el registro del historial.");
+      return false;
     }
   }
 
@@ -2922,7 +3007,7 @@ async function finalizarSesion() {
                     : "bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600"
                 )}
               >
-                🗂️ Historial de Decisiones
+                🗂️ Historial Consolidado
               </h1>
               <p
                 className={cn(
@@ -2930,245 +3015,200 @@ async function finalizarSesion() {
                   isDark ? "text-slate-300/90" : "text-slate-600"
                 )}
               >
-                Búsqueda y exportación de decisiones guardadas
+                Resumen de sesiones finalizadas y decisiones tomadas
               </p>
             </header>
 
-            {/* Filtros de búsqueda */}
-            <Card className={cardClass}>
-              <CardHeader className="pb-3">
-                <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
-                  🔍 Filtros de Búsqueda
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  placeholder="Buscar por producto, proveedor..."
-                  className={cn(
-                    "h-10 px-3 rounded-xl bg-transparent border",
-                    isDark ? "border-white/20" : "border-slate-300"
-                  )}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                <Select value={proveedorFilter} onValueChange={setProveedorFilter}>
-                  <SelectTrigger className={cn(
-                    "rounded-xl",
-                    isDark ? "bg-white/10 border-white/20" : "bg-white border-slate-300"
-                  )}>
-                    <SelectValue placeholder="Todos los proveedores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos los proveedores</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={async () => {
-                    try {
-                      const { data, error } = await supabase
-                        .from("decisiones")
-                        .select(`
-                          *,
-                          historial_calculos!inner(
-                            producto,
-                            proveedor,
-                            linea,
-                            codigo_barras,
-                            cod_ref,
-                            cantidad_cajas,
-                            cantidad_unidades,
-                            lote,
-                            fecha_vencimiento,
-                            unidades_por_caja
-                          )
-                        `)
-                        .order('fecha_decision', { ascending: false });
-                      if (error) throw error;
-                      setDecisionesHistorial(data || []);
-                    } catch (e) {
-                      console.error("Error cargando historial:", e);
-                      alert("No se pudo cargar el historial de decisiones.");
-                    }
-                  }}
-                  className={cn(
-                    "rounded-xl",
-                    isDark ? "bg-blue-600/80 hover:bg-blue-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
-                  )}
-                >
-                  🔄 Cargar Historial
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Lista de decisiones */}
+            {/* Controles principales */}
             <Card className={cardClass}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className={cn("text-lg font-bold", isDark ? "text-slate-100" : "text-slate-800")}>
-                    📋 Decisiones Guardadas ({decisionesHistorial.length})
+                    📊 Historial Consolidado ({historialConsolidado.length})
                   </CardTitle>
-                  <Button
-                    onClick={async () => {
-                      if (decisionesHistorial.length === 0) {
-                        alert("No hay decisiones para exportar.");
-                        return;
-                      }
-                      try {
-                        const XLSX = await import("xlsx");
-                        const excelData = decisionesHistorial.map((d, i) => ({
-                          "#": i + 1,
-                          "Fecha Decisión": new Date(d.fecha_decision).toLocaleString("es-BO"),
-                          "Producto": d.historial_calculos?.producto || "-",
-                          "Proveedor": d.historial_calculos?.proveedor || "-",
-                          "Línea": d.historial_calculos?.linea || "-",
-                          "Código Barras": d.codigo_barras || "-",
-                          "Código Ref": d.cod_ref || "-",
-                          "Cantidad Cajas": d.historial_calculos?.cantidad_cajas || 0,
-                          "Lote": d.historial_calculos?.lote || "-",
-                          "Vencimiento": d.historial_calculos?.fecha_vencimiento || "-",
-                          "Acción Tomada": d.accion_tomada || "-",
-                          "Precio Sistema (Bs)": Number(d.precio_sistema_unitario || 0).toFixed(2),
-                          "Precio Calculado (Bs)": Number(d.precio_calculado_unitario || 0).toFixed(2),
-                          "Precio Final Aprobado (Bs)": Number(d.precio_final_aprobado || 0).toFixed(2),
-                          "Usuario Revisor": d.usuario_revisor || "-",
-                          "Observaciones": d.observaciones || "-",
-                          "Sucursal": d.sucursal || "-"
-                        }));
-                        
-                        const wb = XLSX.utils.book_new();
-                        const ws = XLSX.utils.json_to_sheet(excelData);
-                        ws["!cols"] = Array(16).fill({ wch: 15 });
-                        XLSX.utils.book_append_sheet(wb, ws, "Historial Decisiones");
-                        
-                        const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-                        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `historial_decisiones_${new Date().toISOString().slice(0,10)}.xlsx`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      } catch (e) {
-                        console.error("Error exportando:", e);
-                        alert("No se pudo exportar el historial.");
-                      }
-                    }}
-                    disabled={decisionesHistorial.length === 0}
-                    className={cn(
-                      "rounded-xl",
-                      decisionesHistorial.length === 0
-                        ? "opacity-50 cursor-not-allowed"
-                        : isDark ? "bg-emerald-600/80 hover:bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    )}
-                  >
-                    📊 Exportar Excel
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setLoadingHistorialConsolidado(true);
+                          const data = await cargarHistorialConsolidado();
+                          setHistorialConsolidado(data);
+                        } catch (e) {
+                          console.error("Error:", e);
+                          alert("No se pudo cargar el historial.");
+                        } finally {
+                          setLoadingHistorialConsolidado(false);
+                        }
+                      }}
+                      className={cn(
+                        "rounded-xl",
+                        isDark ? "bg-blue-600/80 hover:bg-blue-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
+                      )}
+                    >
+                      🔄 Cargar Historial
+                    </Button>
+                    
+                    <Button
+                      onClick={async () => {
+                        if (historialConsolidado.length === 0) {
+                          alert("No hay registros para exportar.");
+                          return;
+                        }
+                        try {
+                          const XLSX = await import("xlsx");
+                          const excelData = historialConsolidado.map((h, i) => ({
+                            "#": i + 1,
+                            "Fecha Consolidación": new Date(h.fecha_consolidacion).toLocaleString("es-BO"),
+                            "Sesión": h.sesion_nombre,
+                            "Total Productos": h.total_productos,
+                            "Productos Antiguos": h.productos_antiguos,
+                            "Productos Nuevos": h.productos_nuevos,
+                            "Productos Promediados": h.productos_promediados,
+                            "Para Reprocesar": h.productos_reprocesar,
+                            "Precios Actualizados": h.precios_actualizados,
+                            "Monto Total (Bs)": Number(h.monto_total_actualizado || 0).toFixed(2),
+                            "Usuario Revisor": h.usuario_revisor,
+                            "Sucursal": h.sucursal || "-",
+                            "Observaciones": h.resumen_observaciones || "-"
+                          }));
+                          
+                          const wb = XLSX.utils.book_new();
+                          const ws = XLSX.utils.json_to_sheet(excelData);
+                          ws["!cols"] = Array(13).fill({ wch: 15 });
+                          XLSX.utils.book_append_sheet(wb, ws, "Historial Consolidado");
+                          
+                          const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+                          const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `historial_consolidado_${new Date().toISOString().slice(0,10)}.xlsx`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          console.error("Error exportando:", e);
+                          alert("No se pudo exportar el historial.");
+                        }
+                      }}
+                      disabled={historialConsolidado.length === 0}
+                      className={cn(
+                        "rounded-xl",
+                        historialConsolidado.length === 0
+                          ? "opacity-50 cursor-not-allowed"
+                          : isDark ? "bg-emerald-600/80 hover:bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      )}
+                    >
+                      📊 Exportar Excel
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               
               <CardContent className="space-y-3">
-                {loadingDecisiones ? (
+                {loadingHistorialConsolidado ? (
                   <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
                     <div className="text-4xl mb-2">⏳</div>
-                    Cargando decisiones...
+                    Cargando historial consolidado...
                   </div>
-                ) : decisionesHistorial.length === 0 ? (
+                ) : historialConsolidado.length === 0 ? (
                   <div className={cn("py-12 text-center", isDark ? "text-slate-300" : "text-slate-600")}>
-                    <div className="text-4xl mb-2">📭</div>
-                    <div className="text-lg font-semibold mb-2">Sin decisiones guardadas</div>
-                    <div className="text-sm">Las decisiones aparecerán aquí después de guardarlas en el módulo de revisión</div>
+                    <div className="text-4xl mb-2">📋</div>
+                    <div className="text-lg font-semibold mb-2">Sin registros consolidados</div>
+                    <div className="text-sm">Los registros aparecerán aquí después de finalizar sesiones en el módulo de revisión</div>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[70vh] overflow-y-auto">
-                    {decisionesHistorial.map((d) => (
+                  <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                    {historialConsolidado.map((registro) => (
                       <div
-                        key={d.id}
+                        key={registro.id}
                         className={cn(
-                          "p-4 rounded-2xl border-2",
+                          "p-5 rounded-3xl border-2 relative group",
                           isDark ? "bg-white/5 border-white/15" : "bg-white border-slate-200"
                         )}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="font-bold text-lg">{d.historial_calculos?.producto || "Producto sin nombre"}</div>
-                            <div className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-                              🏢 {d.historial_calculos?.proveedor || "-"} · 🏷️ {d.historial_calculos?.linea || "-"}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
-                              📅 {new Date(d.fecha_decision).toLocaleString("es-BO")}
-                            </div>
-                            <div className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
-                              👤 {d.usuario_revisor}
-                            </div>
-                          </div>
-                        </div>
+                        {/* Botón eliminar */}
+                        <button
+                          onClick={async () => {
+                            const eliminado = await eliminarRegistroConsolidado(registro.id, registro.session_id);
+                            if (eliminado) {
+                              const data = await cargarHistorialConsolidado();
+                              setHistorialConsolidado(data);
+                            }
+                          }}
+                          className={cn(
+                            "absolute top-3 right-3 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity",
+                            isDark ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-100 text-red-600"
+                          )}
+                          title="Eliminar registro (no afecta precios del sistema)"
+                        >
+                          🗑️
+                        </button>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
-                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-green-500/20" : "bg-green-50")}>
-                            <span className="opacity-80">📦 Cajas:</span>
-                            <div className="font-semibold">{d.historial_calculos?.cantidad_cajas || 0}</div>
-                          </div>
-                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
-                            <span className="opacity-80">🏷️ Lote:</span>
-                            <div className="font-semibold">{d.historial_calculos?.lote || "-"}</div>
-                          </div>
-                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-red-500/20" : "bg-red-50")}>
-                            <span className="opacity-80">📅 Vencimiento:</span>
-                            <div className="font-semibold">
-                              {d.historial_calculos?.fecha_vencimiento 
-                                ? new Date(d.historial_calculos.fecha_vencimiento).toLocaleDateString("es-BO") 
-                                : "-"}
+                        <div className="pr-12">
+                          {/* Encabezado */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="font-bold text-xl mb-2">{registro.sesion_nombre}</h3>
+                              <div className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+                                📅 {new Date(registro.fecha_consolidacion).toLocaleString("es-BO")}
+                              </div>
+                            </div>
+                            <div className={cn(
+                              "px-3 py-2 rounded-xl text-center",
+                              isDark ? "bg-emerald-500/20 border border-emerald-400/50" : "bg-emerald-100 border border-emerald-300"
+                            )}>
+                              <div className="text-xs opacity-80">💰 Monto Total</div>
+                              <div className={cn("font-bold", isDark ? "text-emerald-300" : "text-emerald-700")}>
+                                Bs {nf.format(registro.monto_total_actualizado || 0)}
+                              </div>
                             </div>
                           </div>
-                          <div className={cn("px-2 py-1 rounded", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
-                            <span className="opacity-80">📊 Código:</span>
-                            <div className="font-semibold">{d.codigo_barras || d.cod_ref || "-"}</div>
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-4 gap-3 mb-3">
-                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
-                            <div className="text-xs opacity-80">💰 Sistema</div>
-                            <div className="font-bold">Bs {nf.format(d.precio_sistema_unitario || 0)}</div>
-                          </div>
-                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
-                            <div className="text-xs opacity-80">🆕 Calculado</div>
-                            <div className="font-bold">Bs {nf.format(d.precio_calculado_unitario || 0)}</div>
-                          </div>
-                          <div className={cn("p-2 text-center rounded-xl", isDark ? "bg-emerald-500/20" : "bg-emerald-50")}>
-                            <div className="text-xs opacity-80">🎯 Final</div>
-                            <div className="font-bold text-emerald-600">Bs {nf.format(d.precio_final_aprobado || 0)}</div>
-                          </div>
-                          <div className={cn(
-                            "p-2 text-center rounded-xl",
-                            d.accion_tomada === 'usar_anterior' 
-                              ? (isDark ? "bg-blue-500/20" : "bg-blue-50")
-                              : d.accion_tomada === 'usar_nuevo'
-                              ? (isDark ? "bg-emerald-500/20" : "bg-emerald-50")
-                              : d.accion_tomada === 'promediar'
-                              ? (isDark ? "bg-amber-500/20" : "bg-amber-50")
-                              : (isDark ? "bg-orange-500/20" : "bg-orange-50")
-                          )}>
-                            <div className="text-xs opacity-80">Decisión</div>
-                            <div className="font-bold text-xs">
-                              {d.accion_tomada === 'usar_anterior' ? '⬇️ Anterior' :
-                               d.accion_tomada === 'usar_nuevo' ? '⬆️ Nuevo' :
-                               d.accion_tomada === 'promediar' ? '⚖️ Promedio' :
-                               d.accion_tomada === 'reprocesar' ? '🔄 Reprocesar' : d.accion_tomada}
+                          {/* Métricas principales */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                              <div className="text-xs opacity-80">📦 Total Productos</div>
+                              <div className="font-bold text-xl">{registro.total_productos}</div>
+                            </div>
+                            <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-green-500/20" : "bg-green-50")}>
+                              <div className="text-xs opacity-80">✅ Actualizados</div>
+                              <div className="font-bold text-xl text-green-600">{registro.precios_actualizados}</div>
+                            </div>
+                            <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                              <div className="text-xs opacity-80">🔄 Reprocesar</div>
+                              <div className="font-bold text-xl">{registro.productos_reprocesar}</div>
+                            </div>
+                            <div className={cn("p-3 text-center rounded-xl", isDark ? "bg-purple-500/20" : "bg-purple-50")}>
+                              <div className="text-xs opacity-80">👤 Revisor</div>
+                              <div className="font-bold text-sm">{registro.usuario_revisor}</div>
                             </div>
                           </div>
-                        </div>
 
-                        {d.observaciones && (
-                          <div className={cn("text-xs p-2 rounded-lg", isDark ? "bg-white/10" : "bg-slate-50")}>
-                            <span className="opacity-80">💬 Observaciones:</span> {d.observaciones}
+                          {/* Desglose de decisiones */}
+                          <div className="grid grid-cols-3 gap-2 text-xs mb-4">
+                            <div className={cn("px-2 py-1 rounded text-center", isDark ? "bg-slate-500/20" : "bg-slate-50")}>
+                              <span className="opacity-80">⬇️ Antiguos:</span>
+                              <div className="font-bold">{registro.productos_antiguos}</div>
+                            </div>
+                            <div className={cn("px-2 py-1 rounded text-center", isDark ? "bg-blue-500/20" : "bg-blue-50")}>
+                              <span className="opacity-80">⬆️ Nuevos:</span>
+                              <div className="font-bold">{registro.productos_nuevos}</div>
+                            </div>
+                            <div className={cn("px-2 py-1 rounded text-center", isDark ? "bg-amber-500/20" : "bg-amber-50")}>
+                              <span className="opacity-80">⚖️ Promediados:</span>
+                              <div className="font-bold">{registro.productos_promediados}</div>
+                            </div>
                           </div>
-                        )}
+
+                          {/* Observaciones */}
+                          {registro.resumen_observaciones && (
+                            <div className={cn("text-xs p-3 rounded-lg", isDark ? "bg-white/10" : "bg-slate-50")}>
+                              <span className="opacity-80">💬 Observaciones:</span> {registro.resumen_observaciones}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
