@@ -699,24 +699,44 @@ export default function AppMargenes() {
       if (error) throw error;
 
       // Actualizar precios_sistema con los precios finales aprobados (excepto reprocesar)
-      const preciosParaActualizar = rows
-        .filter(r => (r.codigo_barras || r.cod_ref) && r.accion_tomada !== 'reprocesar')
-        .map(r => {
-          const producto = productosRevision.find(p => p.id === r.historial_id);
-          return {
-            codigo_barras: r.codigo_barras,
-            cod_ref: r.cod_ref,
-            precio_caja: r.precio_final_aprobado * (producto?.unidades_por_caja || 1),
-            updated_at: new Date().toISOString()
-          };
-        });
+      const productosParaActualizar = decisionesTomadas.filter(r => 
+        decisiones[`decision_${r.id}`] !== 'reprocesar' && (r.codigo_barras || r.cod_ref)
+      );
 
-      if (preciosParaActualizar.length > 0) {
-        const { error: errorPrecios } = await supabase
-          .from("precios_sistema")
-          .upsert(preciosParaActualizar);
+      for (const producto of productosParaActualizar) {
+        const decision = decisiones[`decision_${producto.id}`];
+        const precioAnteriorEditado = decisiones[`precio_anterior_${producto.id}`] ? Number(decisiones[`precio_anterior_${producto.id}`]) : null;
+        const code = producto.codigo_barras || producto.cod_ref;
+        const precioSistema = preciosSistema[code];
+        const precioAnteriorSistema = precioSistema?.precio_caja ? (precioSistema.precio_caja / (producto.unidades_por_caja || 1)) : null;
+        const precioAnterior = precioAnteriorEditado || precioAnteriorSistema;
         
-        if (errorPrecios) console.error("Error actualizando precios_sistema:", errorPrecios);
+        let precioFinalUnitario = producto.precio_final_unitario ?? 0;
+        
+        if (decision === 'usar_anterior' && precioAnterior) {
+          precioFinalUnitario = precioAnterior;
+        } else if (decision === 'promediar' && precioAnterior) {
+          precioFinalUnitario = (producto.precio_final_unitario + precioAnterior) / 2;
+        }
+
+        const precioFinalCaja = precioFinalUnitario * (producto.unidades_por_caja || 1);
+
+        try {
+          const { error: errorPrecios } = await supabase
+            .from("precios_sistema")
+            .upsert({
+              codigo_barras: producto.codigo_barras || null,
+              cod_ref: producto.cod_ref || null,
+              precio_caja: precioFinalCaja,
+              updated_at: new Date().toISOString()
+            });
+          
+          if (errorPrecios) {
+            console.error(`Error actualizando precio para ${producto.nombre}:`, errorPrecios);
+          }
+        } catch (e) {
+          console.error(`Error actualizando precio para ${producto.nombre}:`, e);
+        }
       }
 
       // Contar tipos de decisiones
