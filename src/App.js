@@ -796,7 +796,7 @@ export default function AppMargenes() {
 
   async function cargarSesionesPendientes() {
   try {
-    const estadosPendientes = ['enviada_revision', 'finalizada'];
+    const estadosPendientes = ['enviada_revision']; // Solo buscar enviadas a revisión
     const { data, error } = await supabase
       .from('sesiones_trabajo')
       .select('*')
@@ -1104,7 +1104,7 @@ async function finalizarSesion() {
       const { error: errorSesion } = await supabase
         .from('sesiones_trabajo')
         .update({ 
-          estado: 'completada', // Cambiar a completada para que no aparezca en pendientes
+          estado: 'en_proceso', // Usar estado que funciona pero que no está en pendientes
           fecha_finalizacion: new Date().toISOString()
         })
         .eq('id', sesionEnRevision.id);
